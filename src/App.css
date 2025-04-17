@@ -1,0 +1,240 @@
+/* Importar fuentes temáticas */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@400;700&display=swap');
+
+/* Asegurar que la aplicación ocupe todo el espacio disponible */
+html, body, #root {
+  height: 100%;
+  width: 100%; /* Asegurar ancho completo */
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* Buena práctica */
+}
+
+*, *:before, *:after {
+  box-sizing: inherit; /* Heredar box-sizing */
+}
+
+/* Estilo contenedor principal */
+.game-container {
+  display: flex;
+  flex-direction: row; /* ¡Cambio clave: fila en lugar de columna! */
+  justify-content: space-between; /* Distribuye espacio entre columnas */
+  align-items: stretch; /* Estira los hijos para igualar altura */
+  min-height: 100vh; /* Ocupar toda la altura visible */
+  width: 100%; /* Ocupar todo el ancho */
+  padding: 15px; /* Añadir un poco de padding general */
+  gap: 15px; /* Espacio entre las 3 columnas principales */
+  box-sizing: border-box; /* Asegurar que el padding no añada ancho extra */
+}
+
+/* Estilo para las áreas de los jugadores */
+.player-area {
+  border: 1px solid rgba(255, 215, 0, 0.6); /* Borde dorado semitransparente */
+  padding: 15px;
+  background-color: rgba(20, 20, 40, 0.7); /* Fondo azul oscuro semitransparente */
+  border-radius: 8px; /* Esquinas redondeadas */
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); /* Sutil brillo dorado */
+  flex: 1 1 30%; /* flex-grow: 1, flex-shrink: 1, flex-basis: 30% */
+  max-width: 350px; /* Un ancho máximo opcional */
+  overflow-y: auto; /* Scroll si el contenido es muy largo */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  backdrop-filter: blur(3px);
+}
+
+/* Columna Central */
+.center-column {
+  display: flex;
+  flex-direction: column; /* Columna vertical para Tablero y Log */
+  flex: 2 1 40%; /* flex-grow: 2 (más importante), flex-shrink: 1, flex-basis: 40% */
+  gap: 15px; /* Espacio entre Tablero y Log */
+  align-items: stretch; /* Estirar hijos */
+}
+
+/* Estilo para el tablero de juego */
+.game-board {
+  border: 1px solid rgba(192, 192, 192, 0.6); /* Borde plateado semitransparente */
+  padding: 15px;
+  background-color: rgba(50, 50, 70, 0.6); /* Fondo púrpura/gris oscuro semitransparente */
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(192, 192, 192, 0.2); /* Sutil brillo plateado */
+  flex-grow: 3; /* Que el tablero ocupe más espacio que el log */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(3px);
+}
+
+/* Estilos para los placeholders internos (ahora más sutiles) */
+.player-area > div:not(.actions-section):not(.defense-buttons):not(.waiting-message),
+.game-board > div {
+  border: none;
+  padding: 5px 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+/* Hacer que los stats resalten un poco */
+.player-area > div:nth-of-type(4),
+.player-area > div:nth-of-type(5),
+.player-area > div:nth-of-type(6) {
+  font-weight: bold;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Quitar márgenes por defecto del body para que el contenedor ocupe bien el espacio */
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #0f0f1f;
+  background-image: radial-gradient(circle, #2a2a4a, #0f0f1f 70%);
+  color: #e0e0e0;
+}
+
+/* Estilos para los encabezados */
+h2, h4 {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: gold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Estilos para los botones */
+.action-button, .power-button, .defense-buttons button {
+  padding: 8px 15px;
+  border: 1px solid gold;
+  border-radius: 20px;
+  background: linear-gradient(to bottom, #1a1a3a, #0a0a1a);
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+}
+
+.action-button:hover, .power-button:hover, .defense-buttons button:hover {
+  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
+  color: gold;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.defense-buttons button {
+  border-color: silver;
+  background: linear-gradient(to bottom, #303040, #181820);
+}
+
+.defense-buttons button:hover {
+   color: silver;
+   box-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+/* Estilos para el registro de combate */
+.game-log {
+  border: 1px solid rgba(255, 215, 0, 0.6);
+  padding: 10px 15px;
+  background-color: rgba(10, 10, 20, 0.8);
+  flex-grow: 1; /* Que el log ocupe menos espacio */
+  max-height: 200px;
+  overflow-y: auto;
+  border-radius: 5px;
+  backdrop-filter: blur(3px);
+}
+
+.game-log h4 {
+  margin-top: 0;
+  border-bottom: 1px solid gold;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.log-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.log-message {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+  font-size: 0.85em;
+  color: #c0c0c0;
+}
+
+.log-message:last-child {
+  border-bottom: none;
+}
+
+/* Estilo para mensaje de espera */
+.waiting-message {
+  font-style: italic;
+  color: #a0a0a0;
+  padding: 15px;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-size: 1.1em;
+}
+
+/* --- Media Query para Responsividad --- */
+@media (max-width: 900px) {
+
+  .game-container {
+    flex-direction: column; /* Volver a apilar en columna */
+    min-height: 100%; /* Asegurar altura mínima en móvil */
+    height: auto; /* Permitir que crezca si es necesario */
+    padding: 10px; /* Reducir padding en pantallas pequeñas */
+    gap: 10px; /* Reducir gap */
+  }
+
+  .player-area {
+    flex: 1 1 auto; /* Resetear flex-basis, permitir que crezcan */
+    max-width: none; /* Eliminar ancho máximo */
+    min-height: 250px; /* Una altura mínima para que no colapsen */
+    /* El overflow-y: auto; sigue siendo útil */
+  }
+
+  .center-column {
+    flex: 1 1 auto; /* Resetear flex-basis */
+    order: 0; /* Puedes cambiar el orden si quieres, ej: poner log primero con order: -1 */
+  }
+
+  .game-board {
+     flex-grow: 1; /* Ajustar crecimiento vertical si es necesario */
+     min-height: 200px; /* Altura mínima para el tablero */
+  }
+
+  .game-log {
+    flex-grow: 1;
+    max-height: 150px; /* Altura máxima más pequeña para el log */
+  }
+
+  /* Opcional: Ajustar tamaño de fuentes o botones para móvil */
+  h2, h4 {
+    font-size: 1.1em; /* Reducir un poco títulos */
+  }
+  .action-button, .power-button, .defense-buttons button {
+    font-size: 0.75em; /* Botones más pequeños */
+    padding: 6px 10px;
+  }
+  .log-message {
+    font-size: 0.8em;
+  }
+
+}
+
+/* Opcional: Puedes añadir otro breakpoint para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  .game-container {
+     padding: 5px;
+     gap: 5px;
+  }
+   /* Otros ajustes finos para móviles muy pequeños */
+}
