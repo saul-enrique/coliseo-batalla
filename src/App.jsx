@@ -49,7 +49,8 @@ const initialPlayer1Data = {
       puntos_vitales: [17, 20],
       romper: [11, 20],
       ayuda: [12, 20],
-  }
+  },
+  lastActionType: null // Añadido para la regla de alternancia
 };
 
 // Datos de Shiryu de Dragón como Jugador 2
@@ -99,7 +100,8 @@ const initialPlayer2Data = {
       puntos_vitales: [17, 20],
       romper: [11, 20],
       ayuda: [12, 20],
-  }
+  },
+  lastActionType: null // Añadido para la regla de alternancia
 };
 
 // Opciones de seguimiento para Atrapar
@@ -220,6 +222,77 @@ function App() {
     setGameLog([]); // Limpia el log
   };
   
+  // Función Helper para resolver la acción Llave
+  const resolveLlaveAction = (attacker, defender, additionalBonus = 0) => {
+    logMessage(`Resolviendo Llave [Bono Adicional: ${additionalBonus}]...`);
+    const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data; // Necesario para applyDamage
+    const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data; // Necesario para applyDamage
+
+    let attackerRoll = 0;
+    let defenderRoll = 0;
+    let ties = 0;
+    let currentDamage = attacker.actions.llave; // Daño base
+    let winnerId = null;
+    let loserId = null;
+    let llaveGameOver = false; // Variable local para el resultado
+
+    // Bucle para manejar empates (máximo 3)
+    while (ties < 3) {
+      const attackerBaseRoll = rollD20();
+      const defenderBaseRoll = rollD20();
+      // Aplicar bonos: +2 iniciador + bono adicional de opción + bono de stat (si existiera)
+      const totalBonus = 2 + additionalBonus // + (attacker.stats.llave_bonus || 0); // Si hubiera stat base
+      attackerRoll = attackerBaseRoll + totalBonus;
+      defenderRoll = defenderBaseRoll // + (defender.stats.llave_bonus || 0); // Si hubiera stat base
+
+      logMessage(`Tirada Llave: ${attacker.name} (${attackerBaseRoll}+${totalBonus}=${attackerRoll}) vs ${defender.name} (${defenderBaseRoll})`);
+
+      // --- Determinar ganador/perdedor/empate ---
+      if (attackerRoll > defenderRoll) {
+        winnerId = attacker.id;
+        loserId = defender.id;
+        logMessage(`${attacker.name} gana la llave!`);
+        break;
+      } else if (defenderRoll > attackerRoll) {
+        winnerId = defender.id;
+        loserId = attacker.id;
+        logMessage(`${defender.name} gana la llave!`);
+        break;
+      } else {
+        ties++;
+        if (ties < 3) {
+          currentDamage += 10;
+          logMessage(`¡Empate ${ties}! Forcejeo... Daño aumenta a ${currentDamage}. Volviendo a tirar...`);
+          // Considerar un pequeño delay visual aquí si se quiere en el futuro
+        } else {
+          logMessage("¡Empate por tercera vez! La llave se anula.");
+          winnerId = null;
+          break;
+        }
+      }
+    }
+
+    // --- Aplicar daño y mostrar resultado ---
+    if (winnerId && loserId) {
+      llaveGameOver = applyDamage(loserId, currentDamage); // Aplica daño
+      const winner = winnerId === attacker.id ? attacker : defender;
+      const loser = loserId === attacker.id ? attacker : defender;
+      setArenaEvent({ // Muestra resultado
+        id: Date.now(), type: 'action_effect', actionName: 'Llave',
+        winnerName: winner.name, loserName: loser.name, damage: currentDamage,
+        message: `${winner.name} gana (${attackerRoll} vs ${defenderRoll}). ${loser.name} recibe ${currentDamage} daño.`
+      });
+    } else { // Empate final
+      setArenaEvent({ // Muestra resultado
+        id: Date.now(), type: 'action_effect', actionName: 'Llave',
+        outcome: 'tie',
+        message: `¡Empate final en Llave (${attackerRoll} vs ${defenderRoll})! La llave se anula.`
+      });
+    }
+
+    return llaveGameOver; // Devuelve si terminó el juego
+  };
+  
   // Función para manejar la iniciación de una acción
   const handleActionInitiate = (actionName) => {
     if (!actionState.active) { // Solo iniciar si no hay otra acción activa
@@ -245,83 +318,24 @@ function App() {
           defenderName: defender.name
         });
       } else if (actionName === 'llave') {
-        logMessage(`${attacker.name} intenta una Llave contra ${defender.name}!`);
-        
-        let attackerRoll = 0;
-        let defenderRoll = 0;
-        let ties = 0;
-        let currentDamage = attacker.actions.llave; // Daño base (60)
-        let winnerId = null;
-        let loserId = null;
-        let gameOver = false;
+        logMessage(`${attacker.name} intenta una Llave normal contra ${defender.name}!`);
+        const currentActionName = 'llave'; // Guardar nombre para actualizar estado
 
-        // Bucle para manejar empates (máximo 3)
-        while (ties < 3) {
-          // Realizar tiradas (Atacante +2 por iniciar)
-          const attackerBaseRoll = rollD20();
-          const defenderBaseRoll = rollD20();
-          attackerRoll = attackerBaseRoll + 2; // Bono +2 iniciador
-          defenderRoll = defenderBaseRoll;
+        // Llamar al helper sin bono extra
+        const gameOver = resolveLlaveAction(attacker, defender, 0);
 
-          logMessage(`Tirada Llave: ${attacker.name} (${attackerBaseRoll}+2 = ${attackerRoll}) vs ${defender.name} (${defenderRoll})`);
-
-          if (attackerRoll > defenderRoll) {
-            winnerId = attacker.id;
-            loserId = defender.id;
-            logMessage(`${attacker.name} gana la llave!`);
-            break; // Salir del bucle de empates
-          } else if (defenderRoll > attackerRoll) {
-            winnerId = defender.id;
-            loserId = attacker.id;
-            logMessage(`${defender.name} gana la llave!`);
-            break; // Salir del bucle de empates
-          } else {
-            // Empate
-            ties++;
-            if (ties < 3) {
-              currentDamage += 10; // Aumentar daño por forcejeo
-              logMessage(`¡Empate ${ties}! Forcejeo... Daño aumenta a ${currentDamage}. Volviendo a tirar...`);
-            } else {
-              logMessage("¡Empate por tercera vez! La llave se anula.");
-              setArenaEvent({
-                id: Date.now(),
-                type: 'action_effect',
-                actionName: 'Llave',
-                outcome: 'tie',
-                message: `¡Empate final (${attackerRoll} vs ${defenderRoll})! La llave se anula.`
-              });
-              break; // Salir del bucle
-            }
-          }
-        }
-
-        // Aplicar daño si hubo un ganador
-        if (winnerId && loserId) {
-          gameOver = applyDamage(loserId, currentDamage);
-          
-          // Actualizar el evento de la arena con el resultado
-          const winner = winnerId === attacker.id ? attacker : defender;
-          const loser = loserId === attacker.id ? attacker : defender;
-          setArenaEvent({
-            id: Date.now(),
-            type: 'action_effect',
-            actionName: 'Llave',
-            winnerName: winner.name,
-            loserName: loser.name,
-            damage: currentDamage,
-            message: `${winner.name} gana (${attackerRoll} vs ${defenderRoll}). ${loser.name} recibe ${currentDamage} daño.`
-          });
-        }
-
-        // Pasar turno si el juego no ha terminado
+        // Actualizar lastActionType y pasar turno si no acabó el juego
         if (!gameOver) {
+          const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+          setAttackerData(prev => ({ ...prev, lastActionType: currentActionName })); // Usar la variable
+
           setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
           const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
           setCurrentPlayerId(nextPlayerId);
           const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
           logMessage(`Turno de ${nextPlayerName}`);
         }
-        return;
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'presa') {
         logMessage(`${attacker.name} intenta una Presa contra ${defender.name}!`);
         
@@ -1120,6 +1134,49 @@ function App() {
           damageToDefender = baseDamage; // 60 daño normal si el contraataque falla
         }
       }
+    } else if (actionState.type === 'Atrapar_Opcion7') {
+      const baseDamage = actionState.baseDamage; // 60
+      finalDiceRollData = null; // Reiniciar por si acaso
+
+      if (defenseType === 'esquivar') {
+        const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
+        logMessage(`${defender.name} tira 1d20 para Esquivar contra Ataque Imbloqueable (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+
+        finalDiceRollData = {
+          id: Date.now(), type: 'dice_roll', rollerName: defender.name,
+          rollValue: roll, targetMin: minRoll, targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        };
+
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefender = 0;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          defenseSuccessful = false;
+          damageToDefender = baseDamage;
+          logMessage("¡Esquivada fallida!");
+        }
+      } else { // Bloquear o Contraatacar (Inválido)
+        logMessage(`¡Defensa inválida (${defenseType})! El Ataque Imbloqueable solo puede ser esquivado.`);
+        defenseSuccessful = false;
+        damageToDefender = baseDamage;
+
+        finalDiceRollData = {
+          id: Date.now(), type: 'dice_roll', rollerName: defender.name,
+          rollValue: roll, // Mostramos el roll aunque no se use para la defensa
+          defenseType: defenseType === 'bloquear' ? 'Bloquear' : 'Contraatacar',
+          outcome: 'invalid',
+          message: `¡Defensa inválida! Solo se puede esquivar.`
+        };
+      }
+
+      // Mostrar tirada/resultado inválido (se mostrará antes del resultado final del daño)
+      if (finalDiceRollData) {
+         setArenaEvent(finalDiceRollData);
+         // NO añadir await delay aquí, dejamos que el setTimeout final maneje la pausa
+      }
     } else {
       logMessage(`Resolución para acción tipo ${actionState.type} no implementada.`);
       defenseSuccessful = true;
@@ -1266,14 +1323,29 @@ function App() {
     if (!gameOver) {
       console.log("[DEBUG] Juego NO terminado. Reseteando estado y cambiando turno...");
 
-      // Para otras acciones, mantener el comportamiento actual con setTimeout
-      setTimeout(() => {
+      const actionJustFinished = actionState.type; // Guarda el tipo antes de resetear
+      const attackerId = actionState.attackerId; // Guarda el ID del atacante
+      const setAttackerData = attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+
+      const changeTurnCallback = () => {
+        // Actualizar lastActionType del atacante
+        setAttackerData(prev => ({ ...prev, lastActionType: actionJustFinished }));
+
+        // Resetear estado y pasar turno
         setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
         setCurrentPlayerId(nextPlayerId);
         const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
         logMessage(`Turno de ${nextPlayerName}`);
-      }, 2500);
+      };
+
+      if (actionState.type === 'Atrapar_Opcion3') {
+        // Turno inmediato para Opción 3
+        changeTurnCallback();
+      } else {
+        // Turno retrasado para otras acciones
+        setTimeout(changeTurnCallback, 2500);
+      }
     }
   };
 
@@ -1475,22 +1547,78 @@ function App() {
         break;
       }
 
-      default: {
-        // Caso por defecto si algo va mal, o para lógica placeholder
-        logMessage(`Lógica para opción ${optionId} pendiente.`);
-        // Placeholder MUY BÁSICO (reemplazar con lógica real después):
-        setArenaEvent({
-            id: Date.now(), 
-            type: 'action_effect', 
-            actionName: 'Atrapar',
-            message: `Se ejecutó ${optionId} (Lógica Pendiente)`
+      case 'atrapar_op5': {
+        const currentActionName = 'llave'; // La acción subyacente es llave
+
+        // Comprobar Regla de Alternancia
+        if (attacker.lastActionType === 'llave') { // Comprobamos si la última acción fue 'llave'
+          logMessage("¡Regla de Alternancia! No se puede usar Llave después de otra Llave.");
+          setArenaEvent({
+            id: Date.now(), type: 'action_effect',
+            actionName: 'Atrapar: Llave Mejorada', outcome: 'invalid',
+            message: "¡No puedes usar Llave consecutivamente!"
+          });
+          // Pasar turno inmediatamente porque la opción falló por regla
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+          const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+          setCurrentPlayerId(nextPlayerId);
+          const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+          logMessage(`Turno de ${nextPlayerName}`);
+        } else {
+          // Si la regla se cumple, ejecuta la Llave con bono +3
+          logMessage(`${attacker.name} usa Llave Mejorada (+3 Bono)!`);
+          const gameOver = resolveLlaveAction(attacker, defender, 3); // Llama al helper CON bono +3
+
+          // Actualizar lastActionType y pasar turno si no acabó el juego
+          if (!gameOver) {
+            const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+            // Guardamos 'llave' como última acción para la regla de alternancia
+            setAttackerData(prev => ({ ...prev, lastActionType: currentActionName }));
+
+            setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+            logMessage(`Turno de ${nextPlayerName}`);
+          }
+        }
+        break; // Fin del case 'atrapar_op5'
+      }
+
+      case 'atrapar_op6':
+        setActionState({
+          type: 'Atrapar_Opcion6',
+          attacker: currentPlayerId,
+          defender: currentPlayerId === 'player1' ? 'player2' : 'player1',
+          baseDamage: 40,
+          blockDamagePA: 20,
+          defensePenalty: 2
         });
-        // Resetear y pasar turno (Temporal)
-        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-        setCurrentPlayerId(nextPlayerId);
-        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
-        logMessage(`Turno de ${nextPlayerName}`);
+        logMessage(`${attacker.name} usa Ataque Vulnerante.`);
+        break;
+      case 'atrapar_op7': {
+        logMessage(`${attacker.name} usa Ataque Imbloqueable (Opción 7)!`);
+        setActionState({
+          active: true,
+          type: 'Atrapar_Opcion7',
+          attackerId: attacker.id,
+          defenderId: defender.id,
+          stage: 'awaiting_defense',
+          baseDamage: 60,
+          allowedDefenses: ['esquivar']
+        });
+        setArenaEvent({
+          id: Date.now(),
+          type: 'action_effect',
+          actionName: 'Atrapar: Ataque Imbloqueable',
+          attackerName: attacker.name,
+          defenderName: defender.name,
+          message: `${attacker.name} lanza un Ataque Imbloqueable (60 Daño). ${defender.name}, ¡solo puedes intentar Esquivar!`
+        });
+        break;
+      }
+      default: {
+        logMessage(`Opción ${optionId} no implementada.`);
         break;
       }
     }
