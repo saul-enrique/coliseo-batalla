@@ -15,7 +15,7 @@ const ArenaDisplay = ({ event }) => {
 
   useEffect(() => {
     // Si no hay evento o no es una tirada de dados, no hacemos nada
-    if (!event || event.type !== 'dice_roll') {
+    if (!event || (event.type !== 'dice_roll' && !event.rollValue)) {
       setDisplayedRoll(null);
       setShowOutcome(false);
       setIsHighlighting(false);
@@ -82,67 +82,63 @@ const ArenaDisplay = ({ event }) => {
     );
   }
 
+  // Helper para renderizar la información de la tirada
+  const renderDiceInfo = () => (
+    <div className="dice-roll-container">
+      <div className="dice-roll-info">
+        <div className="roller-name">{event.rollerName}</div>
+        <div className={`roll-value ${isHighlighting ? 'final-roll-highlight' : ''}`}>
+          Tirada: {event.type === 'dice_roll' ? displayedRoll : event.rollValue}
+        </div>
+        {event.targetMin !== undefined && event.targetMax !== undefined && (
+          <div className="roll-target">
+            Necesita {event.targetMin}-{event.targetMax}
+          </div>
+        )}
+      </div>
+      {(showOutcome || event.type === 'action_effect') && event.rollOutcome && (
+        <div className={`roll-outcome ${event.rollOutcome}`}>
+          {event.rollOutcome === 'success' && '¡Éxito!'}
+          {event.rollOutcome === 'failure' && '¡Fallo!'}
+          {event.rollOutcome === 'blocked' && '¡Bloqueado!'}
+          {event.rollOutcome === 'countered' && '¡Contraatacado!'}
+          {event.rollOutcome === 'invalid' && '¡Defensa Inválida!'}
+        </div>
+      )}
+    </div>
+  );
+
+  // Helper para renderizar la información del efecto
+  const renderActionEffectInfo = () => (
+    <div className="action-effect-container">
+      <div className="event-header">
+        {event.actionName}
+      </div>
+      <div className="effect-details">
+        {event.damage !== undefined && event.damage > 0 && (
+          <div className="damage-info">
+            {event.targetName} recibe {event.damage} de daño
+          </div>
+        )}
+        {event.message && (
+          <div className="action-message">
+            {event.message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // Renderizamos el evento según su tipo
   return (
     <div className="arena-display">
-      {event && (
-        <div className={`arena-event ${event.type}`}>
-          {event.type === 'dice_roll' && (
-            <div className="dice-roll-container">
-              <div className="dice-roll-info">
-                <div className="roller-name">{event.rollerName}</div>
-                <div className={`roll-value ${isHighlighting ? 'final-roll-highlight' : ''}`}>
-                  Tirada: {displayedRoll}
-                </div>
-                {showOutcome && event.targetMin && event.targetMax && (
-                  <div className="roll-target">
-                    Necesita {event.targetMin}-{event.targetMax}
-                  </div>
-                )}
-              </div>
-              {showOutcome && (
-                <div className={`roll-outcome ${event.outcome}`}>
-                  {event.outcome === 'success' && '¡Éxito!'}
-                  {event.outcome === 'failure' && '¡Fallo!'}
-                  {event.outcome === 'blocked' && '¡Bloqueado!'}
-                  {event.outcome === 'countered' && '¡Contraatacado!'}
-                  {event.outcome === 'invalid' && '¡Defensa Inválida!'}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {event.type === 'action_effect' && (
-            <div className="arena-event">
-              <div className="event-header">
-                {event.actionName}
-              </div>
-              <div className="effect-details">
-                {event.damage && (
-                  <div className="damage-info">
-                    {event.targetName} recibe {event.damage} de daño
-                  </div>
-                )}
-                {event.winnerName && (
-                  <div className="target-info">
-                    {event.winnerName} gana la {event.actionName.toLowerCase()}
-                  </div>
-                )}
-                {event.successfulRolls && event.successfulRolls.length > 0 && (
-                  <div className="roll-details">
-                    Tiradas exitosas: {event.successfulRolls.join(', ')}
-                  </div>
-                )}
-                {event.message && (
-                  <div className="action-message">
-                    {event.message}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <div className={`arena-event ${event.type}`}>
+        {/* Mostrar SIEMPRE info de dados si está presente */}
+        {(event.type === 'dice_roll' || event.rollValue !== undefined) && renderDiceInfo()}
+
+        {/* Mostrar info de efecto SÓLO si el evento es de ese tipo */}
+        {event.type === 'action_effect' && renderActionEffectInfo()}
+      </div>
     </div>
   );
 };

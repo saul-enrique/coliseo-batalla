@@ -1,139 +1,145 @@
 .arena-display {
+  width: 100%;
+  min-height: 150px;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 15px;
+  margin: 10px 0;
+  color: white;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  height: 100%;
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  border-radius: 8px;
-  padding: 20px;
-  color: white;
-  text-align: center;
-  min-height: 200px;
-}
-
-.arena-message {
-  font-size: 1.5rem;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
-}
-
-@keyframes popIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+  align-items: center;
 }
 
 .arena-event {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Estilos para eventos de tirada de dados */
+.dice-roll-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  max-width: 500px;
-  animation: popIn 0.4s ease-out forwards;
+  gap: 8px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
 }
 
-.event-header {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.dice-roll {
+.dice-roll-info {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 5px;
-  margin: 10px 0;
+}
+
+.roller-name {
+  font-weight: bold;
+  color: #ffd700;
 }
 
 .roll-value {
-  font-size: 1.5rem;
+  font-size: 1.2em;
   font-weight: bold;
 }
 
 .roll-target {
-  font-size: 1rem;
-  color: #ccc;
+  font-size: 0.9em;
+  color: #aaa;
 }
 
-.event-outcome {
-  font-size: 1.3rem;
-  font-weight: bold;
-  padding: 5px 15px;
+.roll-outcome {
+  padding: 5px 10px;
   border-radius: 4px;
-  margin-top: 10px;
+  font-weight: bold;
 }
 
-.event-outcome.success {
-  color: #4caf50;
-  background-color: rgba(76, 175, 80, 0.2);
+.roll-outcome.success {
+  background-color: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
 }
 
-.event-outcome.failure {
-  color: #f44336;
-  background-color: rgba(244, 67, 54, 0.2);
+.roll-outcome.failure {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #ff0000;
 }
 
-.event-outcome.blocked {
-  color: #2196f3;
-  background-color: rgba(33, 150, 243, 0.2);
+.roll-outcome.blocked {
+  background-color: rgba(0, 0, 255, 0.2);
+  color: #00ffff;
 }
 
-.event-outcome.countered {
-  color: #ff9800;
-  background-color: rgba(255, 152, 0, 0.2);
+.roll-outcome.countered {
+  background-color: rgba(255, 165, 0, 0.2);
+  color: #ffa500;
+}
+
+.roll-outcome.invalid {
+  background-color: rgba(128, 128, 128, 0.2);
+  color: #808080;
+}
+
+/* Estilos para eventos de efecto de acción */
+.action-effect-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.event-header {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
 }
 
 .effect-details {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  margin-top: 10px;
+  align-items: center;
 }
 
 .damage-info {
-  font-size: 1.2rem;
-  color: #f44336;
-}
-
-.target-info {
-  font-size: 1rem;
-  color: #ccc;
-}
-
-.roll-details {
-  font-size: 1rem;
-  color: #4caf50;
-  margin-top: 5px;
-  padding: 5px;
-  background-color: rgba(76, 175, 80, 0.1);
-  border-radius: 4px;
+  color: #ff4444;
+  font-weight: bold;
 }
 
 .action-message {
-  font-size: 1.1rem;
-  color: #fff;
-  margin-top: 10px;
-  padding: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  line-height: 1.4;
+  color: #ffffff;
+  text-align: center;
 }
 
-@keyframes quickPulseHighlight {
-  0% { transform: scale(1); background-color: transparent; }
-  50% { transform: scale(1.1); background-color: rgba(212, 175, 55, 0.6); }
-  100% { transform: scale(1); background-color: transparent; }
+/* Animación para el resaltado del resultado final */
+.final-roll-highlight {
+  animation: highlight-pulse 1s ease-in-out;
 }
 
-.roll-value.final-roll-highlight {
-  animation: quickPulseHighlight 1s ease-out;
-  position: relative;
+@keyframes highlight-pulse {
+  0% {
+    transform: scale(1);
+    color: #ffffff;
+  }
+  50% {
+    transform: scale(1.2);
+    color: #ffd700;
+  }
+  100% {
+    transform: scale(1);
+    color: #ffffff;
+  }
+}
+
+/* Estilos para mensaje por defecto */
+.arena-message {
+  font-size: 1.2em;
+  color: #ffd700;
+  text-align: center;
 } 
