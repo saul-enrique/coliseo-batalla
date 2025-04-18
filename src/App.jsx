@@ -24,6 +24,8 @@ const initialPlayer1Data = {
     velocidad_luz: 60,
     embestir: 70,
     cargar: 80,
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
   },
   powers: [
     { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' },
@@ -63,6 +65,8 @@ const initialPlayer2Data = {
     golpe: 60,
     llave: 60,
     salto: 70,
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
   },
   powers: [
     { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
@@ -131,27 +135,47 @@ function App() {
   };
   
   // Función auxiliar para aplicar daño a un jugador
-  const applyDamage = (targetPlayerId, damageAmount) => {
+  const applyDamage = (targetPlayerId, damageAmount, damageType = 'normal') => {
     const targetData = targetPlayerId === player1Data.id ? player1Data : player2Data;
     const setTargetData = targetPlayerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
     let isGameOver = false;
 
-    logMessage(`Aplicando ${damageAmount} de daño base a ${targetData.name}...`);
+    logMessage(`Aplicando ${damageAmount} de daño base (Tipo: ${damageType}) a ${targetData.name}...`);
 
-    let damageToPa = Math.ceil(damageAmount / 2);
-    let damageToPv = Math.floor(damageAmount / 2);
-
+    let damageToPa = 0;
+    let damageToPv = 0;
     let currentPA = targetData.stats.currentPA;
     let currentPV = targetData.stats.currentPV;
-    let finalPA = currentPA - damageToPa;
+    let finalPA = currentPA;
     let finalPV = currentPV;
 
-    if (finalPA < 0) {
-      if (currentPA > 0) logMessage(`¡Armadura rota por el daño!`);
-      damageToPv += (-finalPA); // Daño excedente a PV
-      finalPA = 0;
+    if (damageType === 'directPV') {
+        damageToPv = damageAmount;
+        logMessage(`${targetData.name} recibe ${damageToPv} daño directo a PV.`);
+    } else if (damageType === 'directPA') {
+        damageToPa = damageAmount;
+        finalPA = currentPA - damageToPa;
+        if (finalPA < 0) {
+            if (currentPA > 0) logMessage(`¡Armadura rota por el daño directo a PA!`);
+            damageToPv = -finalPA; // Daño excedente a PV
+            finalPA = 0;
+             logMessage(`${targetData.name} recibe ${currentPA} daño a PA y ${damageToPv} daño a PV.`);
+        } else {
+             logMessage(`${targetData.name} recibe ${damageToPa} daño directo a PA.`);
+        }
+    } else { // damageType === 'normal'
+        damageToPa = Math.ceil(damageAmount / 2);
+        damageToPv = Math.floor(damageAmount / 2);
+        finalPA = currentPA - damageToPa;
+        if (finalPA < 0) {
+            if (currentPA > 0) logMessage(`¡Armadura rota por el daño!`);
+            damageToPv += (-finalPA);
+            finalPA = 0;
+        }
+         logMessage(`${targetData.name} recibe ${damageToPv} daño a PV y ${damageToPa} daño a PA.`);
     }
 
+    // Aplicar daño a PV calculado
     finalPV -= damageToPv;
     if (finalPV <= 0) {
       finalPV = 0;
@@ -159,14 +183,10 @@ function App() {
       logMessage(`¡¡¡ ${targetData.name} ha sido derrotado !!!`);
     }
 
-    // Actualizar estado del jugador que recibió daño
+    // Actualizar estado del jugador
     setTargetData(prevData => ({
       ...prevData,
-      stats: {
-        ...prevData.stats,
-        currentPV: finalPV,
-        currentPA: finalPA,
-      }
+      stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
     }));
 
     logMessage(`${targetData.name} - PV: ${finalPV}/${targetData.stats.pv_max}, PA: ${finalPA}/${targetData.stats.pa_max}`);
@@ -174,8 +194,7 @@ function App() {
     if (isGameOver) {
       setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
     }
-
-    return isGameOver; // Retorna true si el juego terminó
+    return isGameOver;
   };
   
   // Función para manejar la iniciación de una acción
@@ -256,6 +275,106 @@ function App() {
           logMessage(`Turno de ${nextPlayerName}`);
         }
         return; // Terminar handleActionInitiate aquí para 'llave'
+      } else if (actionName === 'presa') {
+        logMessage(`${attacker.name} intenta una Presa contra ${defender.name}!`);
+
+        let totalDamageAccumulated = 0;
+        let successfulHits = 0;
+        let gameOver = false;
+
+        for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
+            const roll = rollD20();
+            const isOdd = roll % 2 !== 0;
+
+            if (isOdd) {
+                successfulHits++;
+                const damagePerHit = 15; // Daño Presa según reglas
+                totalDamageAccumulated += damagePerHit;
+                logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño PV (Total Acumulado: ${totalDamageAccumulated})`);
+                if (successfulHits === 3) {
+                     logMessage("Máximo de 3 golpes exitosos alcanzado.");
+                     break; // Termina después del 3er éxito
+                }
+            } else {
+                logMessage(`Tirada ${i + 1}: ${roll} (Par!) - Presa detenida.`);
+                break; // Termina si falla (par)
+            }
+        }
+
+        // Aplicar daño acumulado si hubo algún éxito
+        if (totalDamageAccumulated > 0) {
+             logMessage(`Daño total de la Presa: ${totalDamageAccumulated} directo a PV.`);
+             gameOver = applyDamage(defender.id, totalDamageAccumulated, 'directPV');
+        } else {
+             logMessage("La Presa no hizo daño.");
+        }
+
+        // Pasar turno si el juego no ha terminado
+        if (!gameOver) {
+             // Resetear concentración si aplica (Presa no usa)
+             // ...
+
+             setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+             const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+             setCurrentPlayerId(nextPlayerId);
+             const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+             logMessage(`Turno de ${nextPlayerName}`);
+        }
+        return; // Terminar handleActionInitiate aquí para 'presa'
+      } else if (actionName === 'destrozar') {
+        logMessage(`${attacker.name} intenta Destrozar la armadura de ${defender.name}!`);
+
+        // Comprobar si el defensor tiene armadura
+        if (defender.stats.currentPA <= 0) {
+            logMessage(`¡La armadura de ${defender.name} ya está rota! No se puede usar Destrozar.`);
+            // No se pasa el turno, permitir elegir otra acción
+            return;
+        }
+
+        let totalDamageAccumulated = 0;
+        let successfulHits = 0;
+        let gameOver = false;
+
+        for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
+            const roll = rollD20();
+            const isOdd = roll % 2 !== 0;
+
+            if (isOdd) {
+                successfulHits++;
+                const damagePerHit = 15; // Daño Destrozar según reglas
+                totalDamageAccumulated += damagePerHit;
+                logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño PA (Total Acumulado: ${totalDamageAccumulated})`);
+                if (successfulHits === 3) {
+                     logMessage("Máximo de 3 golpes exitosos alcanzado.");
+                     break; // Termina después del 3er éxito
+                }
+            } else {
+                logMessage(`Tirada ${i + 1}: ${roll} (Par!) - Destrozar detenido.`);
+                break; // Termina si falla (par)
+            }
+        }
+
+        // Aplicar daño acumulado si hubo algún éxito
+        if (totalDamageAccumulated > 0) {
+             logMessage(`Daño total de Destrozar: ${totalDamageAccumulated} directo a PA.`);
+             // Usamos 'directPA'. La función applyDamage maneja la rotura y overflow a PV.
+             gameOver = applyDamage(defender.id, totalDamageAccumulated, 'directPA');
+        } else {
+             logMessage("Destrozar no hizo daño.");
+        }
+
+        // Pasar turno si el juego no ha terminado
+        if (!gameOver) {
+             // Resetear concentración si aplica (Destrozar no usa)
+             // ...
+
+             setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+             const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+             setCurrentPlayerId(nextPlayerId);
+             const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+             logMessage(`Turno de ${nextPlayerName}`);
+        }
+        return; // Terminar handleActionInitiate aquí para 'destrozar'
       } else if (actionName === 'poder_ejemplo_1') { // Placeholder para poder
         logMessage(`${attacker.name} intenta usar Poder Ejemplo 1 (lógica no implementada)`);
         // Aquí iría la lógica del poder: restar PC, calcular efecto, etc.
