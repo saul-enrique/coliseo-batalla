@@ -232,15 +232,6 @@ function App() {
       } else if (actionName === 'llave') {
         logMessage(`${attacker.name} intenta una Llave contra ${defender.name}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
-          id: Date.now(),
-          type: 'action_effect',
-          actionName: 'Llave',
-          attackerName: attacker.name,
-          defenderName: defender.name
-        });
-
         let attackerRoll = 0;
         let defenderRoll = 0;
         let ties = 0;
@@ -252,24 +243,12 @@ function App() {
         // Bucle para manejar empates (máximo 3)
         while (ties < 3) {
           // Realizar tiradas (Atacante +2 por iniciar)
-          // Asumimos modificador de Llave base +0 para ambos por ahora
           const attackerBaseRoll = rollD20();
           const defenderBaseRoll = rollD20();
           attackerRoll = attackerBaseRoll + 2; // Bono +2 iniciador
           defenderRoll = defenderBaseRoll;
 
           logMessage(`Tirada Llave: ${attacker.name} (${attackerBaseRoll}+2 = ${attackerRoll}) vs ${defender.name} (${defenderRoll})`);
-          
-          // Actualizar el evento de la arena con la tirada
-          setArenaEvent({
-            id: Date.now(),
-            type: 'dice_roll',
-            rollerName: attacker.name,
-            rollValue: attackerRoll,
-            targetName: defender.name,
-            actionName: 'Llave',
-            stage: ties + 1
-          });
 
           if (attackerRoll > defenderRoll) {
             winnerId = attacker.id;
@@ -289,7 +268,13 @@ function App() {
               logMessage(`¡Empate ${ties}! Forcejeo... Daño aumenta a ${currentDamage}. Volviendo a tirar...`);
             } else {
               logMessage("¡Empate por tercera vez! La llave se anula.");
-              winnerId = null; // Nadie gana
+              setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Llave',
+                outcome: 'tie',
+                message: `¡Empate final (${attackerRoll} vs ${defenderRoll})! La llave se anula.`
+              });
               break; // Salir del bucle
             }
           }
@@ -308,57 +293,39 @@ function App() {
             actionName: 'Llave',
             winnerName: winner.name,
             loserName: loser.name,
-            damage: currentDamage
+            damage: currentDamage,
+            message: `${winner.name} gana (${attackerRoll} vs ${defenderRoll}). ${loser.name} recibe ${currentDamage} daño.`
           });
         }
 
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
-          // Resetear concentración si aplica (aunque Llave no usa)
-          // ...
-
-          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null }); // Resetear por si acaso
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
           const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
           setCurrentPlayerId(nextPlayerId);
           const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
           logMessage(`Turno de ${nextPlayerName}`);
         }
-        return; // Terminar handleActionInitiate aquí para 'llave'
+        return;
       } else if (actionName === 'presa') {
         logMessage(`${attacker.name} intenta una Presa contra ${defender.name}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
-          id: Date.now(),
-          type: 'action_effect',
-          actionName: 'Presa',
-          attackerName: attacker.name,
-          defenderName: defender.name
-        });
-
         let totalDamageAccumulated = 0;
         let successfulHits = 0;
+        let successfulRolls = []; // Array para almacenar las tiradas exitosas
+        let lastRoll = null; // Variable para guardar la última tirada
         let gameOver = false;
 
         for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
             const roll = rollD20();
+            lastRoll = roll; // Guardamos la última tirada
             const isOdd = roll % 2 !== 0;
-            
-            // Actualizar el evento de la arena con la tirada
-            setArenaEvent({
-              id: Date.now(),
-              type: 'dice_roll',
-              rollerName: attacker.name,
-              rollValue: roll,
-              isOdd: isOdd,
-              actionName: 'Presa',
-              stage: i + 1
-            });
 
             if (isOdd) {
                 successfulHits++;
                 const damagePerHit = 15; // Daño Presa según reglas
                 totalDamageAccumulated += damagePerHit;
+                successfulRolls.push(roll); // Guardar la tirada exitosa
                 logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño PV (Total Acumulado: ${totalDamageAccumulated})`);
                 if (successfulHits === 3) {
                      logMessage("Máximo de 3 golpes exitosos alcanzado.");
@@ -383,7 +350,9 @@ function App() {
                attackerName: attacker.name,
                defenderName: defender.name,
                damage: totalDamageAccumulated,
-               hits: successfulHits
+               hits: successfulHits,
+               successfulRolls: successfulRolls,
+               message: `${attacker.name} asesta ${successfulHits} golpes (Tiradas: ${successfulRolls.join(', ')}). ${defender.name} recibe ${totalDamageAccumulated} daño PV.`
              });
         } else {
              logMessage("La Presa no hizo daño.");
@@ -395,34 +364,23 @@ function App() {
                actionName: 'Presa',
                attackerName: attacker.name,
                defenderName: defender.name,
-               outcome: 'failed'
+               outcome: 'failed',
+               message: `${attacker.name} falla la Presa (Tirada: ${lastRoll})`
              });
         }
 
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
-             // Resetear concentración si aplica (Presa no usa)
-             // ...
-
              setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
              const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
              setCurrentPlayerId(nextPlayerId);
              const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
              logMessage(`Turno de ${nextPlayerName}`);
         }
-        return; // Terminar handleActionInitiate aquí para 'presa'
+        return;
       } else if (actionName === 'destrozar') {
         logMessage(`${attacker.name} intenta Destrozar la armadura de ${defender.name}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
-          id: Date.now(),
-          type: 'action_effect',
-          actionName: 'Destrozar',
-          attackerName: attacker.name,
-          defenderName: defender.name
-        });
-
         // Comprobar si el defensor tiene armadura
         if (defender.stats.currentPA <= 0) {
             logMessage(`¡La armadura de ${defender.name} ya está rota! No se puede usar Destrozar.`);
@@ -434,36 +392,29 @@ function App() {
               actionName: 'Destrozar',
               attackerName: attacker.name,
               defenderName: defender.name,
-              outcome: 'no_armor'
+              outcome: 'no_armor',
+              message: `¡La armadura de ${defender.name} ya está rota!`
             });
             
-            // No se pasa el turno, permitir elegir otra acción
             return;
         }
 
         let totalDamageAccumulated = 0;
         let successfulHits = 0;
+        let successfulRolls = []; // Array para almacenar las tiradas exitosas
+        let lastRoll = null; // Variable para guardar la última tirada
         let gameOver = false;
 
         for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
             const roll = rollD20();
+            lastRoll = roll; // Guardamos la última tirada
             const isOdd = roll % 2 !== 0;
-            
-            // Actualizar el evento de la arena con la tirada
-            setArenaEvent({
-              id: Date.now(),
-              type: 'dice_roll',
-              rollerName: attacker.name,
-              rollValue: roll,
-              isOdd: isOdd,
-              actionName: 'Destrozar',
-              stage: i + 1
-            });
 
             if (isOdd) {
                 successfulHits++;
                 const damagePerHit = 15; // Daño Destrozar según reglas
                 totalDamageAccumulated += damagePerHit;
+                successfulRolls.push(roll); // Guardar la tirada exitosa
                 logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño PA (Total Acumulado: ${totalDamageAccumulated})`);
                 if (successfulHits === 3) {
                      logMessage("Máximo de 3 golpes exitosos alcanzado.");
@@ -478,7 +429,6 @@ function App() {
         // Aplicar daño acumulado si hubo algún éxito
         if (totalDamageAccumulated > 0) {
              logMessage(`Daño total de Destrozar: ${totalDamageAccumulated} directo a PA.`);
-             // Usamos 'directPA'. La función applyDamage maneja la rotura y overflow a PV.
              gameOver = applyDamage(defender.id, totalDamageAccumulated, 'directPA');
              
              // Actualizar el evento de la arena con el resultado
@@ -489,7 +439,9 @@ function App() {
                attackerName: attacker.name,
                defenderName: defender.name,
                damage: totalDamageAccumulated,
-               hits: successfulHits
+               hits: successfulHits,
+               successfulRolls: successfulRolls,
+               message: `${attacker.name} golpea ${successfulHits} veces la armadura (Tiradas: ${successfulRolls.join(', ')}). ${defender.name} recibe ${totalDamageAccumulated} daño PA.`
              });
         } else {
              logMessage("Destrozar no hizo daño.");
@@ -501,22 +453,20 @@ function App() {
                actionName: 'Destrozar',
                attackerName: attacker.name,
                defenderName: defender.name,
-               outcome: 'failed'
+               outcome: 'failed',
+               message: `${attacker.name} falla al Destrozar (Tirada: ${lastRoll}). La armadura de ${defender.name} resiste.`
              });
         }
 
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
-             // Resetear concentración si aplica (Destrozar no usa)
-             // ...
-
              setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
              const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
              setCurrentPlayerId(nextPlayerId);
              const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
              logMessage(`Turno de ${nextPlayerName}`);
         }
-        return; // Terminar handleActionInitiate aquí para 'destrozar'
+        return;
       } else if (actionName === 'lanzar_obj') {
         // Verificar concentración si fuera necesario en el futuro
         // if (requiredConcentration > 0 && attackerData.concentrationLevel < requiredConcentration) { ... return; }

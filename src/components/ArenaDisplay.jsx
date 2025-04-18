@@ -96,6 +96,16 @@ const ArenaDisplay = ({ event }) => {
                 {event.winnerName} gana la {event.actionName.toLowerCase()}
               </div>
             )}
+            {event.successfulRolls && event.successfulRolls.length > 0 && (
+              <div className="roll-details">
+                Tiradas exitosas: {event.successfulRolls.join(', ')}
+              </div>
+            )}
+            {event.message && (
+              <div className="action-message">
+                {event.message}
+              </div>
+            )}
           </div>
         </div>
       )}

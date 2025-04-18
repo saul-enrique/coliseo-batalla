@@ -106,4 +106,23 @@
 .target-info {
   font-size: 1rem;
   color: #ccc;
+}
+
+.roll-details {
+  font-size: 1rem;
+  color: #4caf50;
+  margin-top: 5px;
+  padding: 5px;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+}
+
+.action-message {
+  font-size: 1.1rem;
+  color: #fff;
+  margin-top: 10px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  line-height: 1.4;
 } 
