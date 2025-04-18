@@ -130,6 +130,54 @@ function App() {
     setGameLog([]); // Limpia el log
   };
   
+  // Función auxiliar para aplicar daño a un jugador
+  const applyDamage = (targetPlayerId, damageAmount) => {
+    const targetData = targetPlayerId === player1Data.id ? player1Data : player2Data;
+    const setTargetData = targetPlayerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+    let isGameOver = false;
+
+    logMessage(`Aplicando ${damageAmount} de daño base a ${targetData.name}...`);
+
+    let damageToPa = Math.ceil(damageAmount / 2);
+    let damageToPv = Math.floor(damageAmount / 2);
+
+    let currentPA = targetData.stats.currentPA;
+    let currentPV = targetData.stats.currentPV;
+    let finalPA = currentPA - damageToPa;
+    let finalPV = currentPV;
+
+    if (finalPA < 0) {
+      if (currentPA > 0) logMessage(`¡Armadura rota por el daño!`);
+      damageToPv += (-finalPA); // Daño excedente a PV
+      finalPA = 0;
+    }
+
+    finalPV -= damageToPv;
+    if (finalPV <= 0) {
+      finalPV = 0;
+      isGameOver = true;
+      logMessage(`¡¡¡ ${targetData.name} ha sido derrotado !!!`);
+    }
+
+    // Actualizar estado del jugador que recibió daño
+    setTargetData(prevData => ({
+      ...prevData,
+      stats: {
+        ...prevData.stats,
+        currentPV: finalPV,
+        currentPA: finalPA,
+      }
+    }));
+
+    logMessage(`${targetData.name} - PV: ${finalPV}/${targetData.stats.pv_max}, PA: ${finalPA}/${targetData.stats.pa_max}`);
+
+    if (isGameOver) {
+      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
+    }
+
+    return isGameOver; // Retorna true si el juego terminó
+  };
+  
   // Función para manejar la iniciación de una acción
   const handleActionInitiate = (actionName) => {
     if (!actionState.active) { // Solo iniciar si no hay otra acción activa
@@ -145,6 +193,69 @@ function App() {
           defenderId: defender.id,
           stage: 'awaiting_defense'
         });
+      } else if (actionName === 'llave') {
+        logMessage(`${attacker.name} intenta una Llave contra ${defender.name}!`);
+
+        let attackerRoll = 0;
+        let defenderRoll = 0;
+        let ties = 0;
+        let currentDamage = attacker.actions.llave; // Daño base (60)
+        let winnerId = null;
+        let loserId = null;
+        let gameOver = false;
+
+        // Bucle para manejar empates (máximo 3)
+        while (ties < 3) {
+          // Realizar tiradas (Atacante +2 por iniciar)
+          // Asumimos modificador de Llave base +0 para ambos por ahora
+          const attackerBaseRoll = rollD20();
+          const defenderBaseRoll = rollD20();
+          attackerRoll = attackerBaseRoll + 2; // Bono +2 iniciador
+          defenderRoll = defenderBaseRoll;
+
+          logMessage(`Tirada Llave: ${attacker.name} (${attackerBaseRoll}+2 = ${attackerRoll}) vs ${defender.name} (${defenderRoll})`);
+
+          if (attackerRoll > defenderRoll) {
+            winnerId = attacker.id;
+            loserId = defender.id;
+            logMessage(`${attacker.name} gana la llave!`);
+            break; // Salir del bucle de empates
+          } else if (defenderRoll > attackerRoll) {
+            winnerId = defender.id;
+            loserId = attacker.id;
+            logMessage(`${defender.name} gana la llave!`);
+            break; // Salir del bucle de empates
+          } else {
+            // Empate
+            ties++;
+            if (ties < 3) {
+              currentDamage += 10; // Aumentar daño por forcejeo
+              logMessage(`¡Empate ${ties}! Forcejeo... Daño aumenta a ${currentDamage}. Volviendo a tirar...`);
+            } else {
+              logMessage("¡Empate por tercera vez! La llave se anula.");
+              winnerId = null; // Nadie gana
+              break; // Salir del bucle
+            }
+          }
+        }
+
+        // Aplicar daño si hubo un ganador
+        if (winnerId && loserId) {
+          gameOver = applyDamage(loserId, currentDamage);
+        }
+
+        // Pasar turno si el juego no ha terminado
+        if (!gameOver) {
+          // Resetear concentración si aplica (aunque Llave no usa)
+          // ...
+
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null }); // Resetear por si acaso
+          const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+          setCurrentPlayerId(nextPlayerId);
+          const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+          logMessage(`Turno de ${nextPlayerName}`);
+        }
+        return; // Terminar handleActionInitiate aquí para 'llave'
       } else if (actionName === 'poder_ejemplo_1') { // Placeholder para poder
         logMessage(`${attacker.name} intenta usar Poder Ejemplo 1 (lógica no implementada)`);
         // Aquí iría la lógica del poder: restar PC, calcular efecto, etc.
@@ -225,86 +336,61 @@ function App() {
       defenseSuccessful = true; // Asumir éxito para pasar turno
     }
 
-    // --- Aplicar Daños ---
-    let attackerFinalPV = attacker.stats.currentPV;
-    let attackerFinalPA = attacker.stats.currentPA;
-    let defenderFinalPV = defender.stats.currentPV;
-    let defenderFinalPA = defender.stats.currentPA;
+    // (Después de determinar defenseSuccessful, damageToAttacker, damageToDefender, damageToDefenderPA)
+
     let gameOver = false;
 
-    // Aplicar daño al Atacante (si hubo contraataque exitoso)
+    // Aplicar daño al Atacante (si hubo contraataque)
     if (damageToAttacker > 0) {
-      let damageToAttackerPa = Math.ceil(damageToAttacker / 2);
-      let damageToAttackerPv = Math.floor(damageToAttacker / 2);
-      let currentAttackerPA = attacker.stats.currentPA;
-      attackerFinalPA = currentAttackerPA - damageToAttackerPa;
-      if (attackerFinalPA < 0) {
-        damageToAttackerPv += (-attackerFinalPA);
-        attackerFinalPA = 0;
-      }
-      attackerFinalPV = attacker.stats.currentPV - damageToAttackerPv;
-      if (attackerFinalPV <= 0) {
-        attackerFinalPV = 0;
-        gameOver = true;
-        logMessage(`¡¡¡ ${attacker.name} ha sido derrotado por el contraataque !!!`);
-      }
-      setAttackerData(prevData => ({ ...prevData, stats: { ...prevData.stats, currentPV: attackerFinalPV, currentPA: attackerFinalPA } }));
-      logMessage(`${attacker.name} - PV: ${attackerFinalPV}/${attacker.stats.pv_max}, PA: ${attackerFinalPA}/${attacker.stats.pa_max}`);
+      gameOver = applyDamage(attackerId, damageToAttacker);
     }
 
     // Aplicar daño al Defensor (si la defensa falló o fue bloqueo exitoso)
-    if (damageToDefender > 0 || damageToDefenderPA > 0) {
-      let damageToPv = 0;
-      let damageToPa = 0;
-
-      if (damageToDefender > 0) { // Defensa fallida, daño completo
-        damageToPa = Math.ceil(damageToDefender / 2);
-        damageToPv = Math.floor(damageToDefender / 2);
-      } else { // Bloqueo exitoso, solo daño a PA
-        damageToPa = damageToDefenderPA;
-      }
-
-      let currentDefenderPA = defender.stats.currentPA;
-      defenderFinalPA = currentDefenderPA - damageToPa;
-      if (defenderFinalPA < 0) {
-        if (currentDefenderPA > 0) logMessage("¡Armadura rota!");
-        damageToPv += (-defenderFinalPA); // Daño excedente a PV
-        defenderFinalPA = 0;
-      }
-
-      defenderFinalPV = defender.stats.currentPV - damageToPv;
-      if (defenderFinalPV <= 0) {
-        defenderFinalPV = 0;
-        gameOver = true;
-        logMessage(`¡¡¡ ${defender.name} ha sido derrotado !!!`);
-      }
-      
-      // Mensajes de log mejorados para el bloqueo
-      if (damageToDefenderPA > 0 && damageToDefender === 0) { // Solo si fue un bloqueo exitoso
-        if (currentDefenderPA > 0 && defenderFinalPA >= 0) { // Armadura aguantó
-          logMessage(`¡Bloqueo exitoso! ${defender.name} recibe ${damageToDefenderPA} daño a PA.`);
-        } else if (currentDefenderPA > 0 && defenderFinalPA <= 0) { // Armadura se rompió con el bloqueo
-          logMessage(`¡Bloqueo exitoso, pero la Armadura se rompe! ${defender.name} recibe ${damageToDefenderPA - currentDefenderPA} daño a PV y ${currentDefenderPA} a PA.`);
-        } else { // Armadura ya estaba rota, daño de bloqueo va a PV
-          logMessage(`¡Bloqueo exitoso! Armadura ya rota. ${defender.name} recibe ${damageToDefenderPA} daño a PV.`);
+    // ¡Solo si el juego no terminó ya por el contraataque!
+    if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) {
+        if (damageToDefender > 0) { // Defensa fallida
+             gameOver = applyDamage(defenderId, damageToDefender);
+        } else { // Bloqueo exitoso
+            // Necesitamos una versión de applyDamage que solo afecte PA
+            // O modificamos applyDamage para recibir el tipo de daño
+            // Solución simple por ahora: aplicamos daño normal de 0 y luego ajustamos PA
+             logMessage(`¡Bloqueo exitoso! ${defender.name} recibe ${damageToDefenderPA} daño a PA.`);
+             let currentDefenderPA = defender.stats.currentPA;
+             let finalPA = currentDefenderPA - damageToDefenderPA;
+             let finalPV = defender.stats.currentPV; // PV no cambia por bloqueo exitoso
+             if (finalPA < 0) {
+                 if (currentDefenderPA > 0) logMessage("¡Armadura rota por el bloqueo!");
+                 // ¡Importante! Según reglas, daño excedente de bloqueo va a PV
+                 let overflowDamage = -finalPA;
+                 finalPA = 0;
+                 finalPV = defender.stats.currentPV - overflowDamage;
+                 if (finalPV <= 0) {
+                     finalPV = 0;
+                     gameOver = true;
+                     logMessage(`¡¡¡ ${defender.name} ha sido derrotado por daño de bloqueo !!!`);
+                 }
+             }
+             setDefenderData(prevData => ({
+                 ...prevData,
+                 stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
+             }));
+              logMessage(`${defender.name} - PV: ${finalPV}/${defender.stats.pv_max}, PA: ${finalPA}/${defender.stats.pa_max}`);
+             if (gameOver) {
+                 setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
+             }
         }
-      } else if (damageToDefender > 0) { // Si la defensa falló (golpe normal)
-        logMessage(`${defender.name} recibe ${damageToPv} daño a PV y ${damageToPa} daño a PA.`);
-      }
-      
-      setDefenderData(prevData => ({ ...prevData, stats: { ...prevData.stats, currentPV: defenderFinalPV, currentPA: defenderFinalPA } }));
-      logMessage(`${defender.name} - PV: ${defenderFinalPV}/${defender.stats.pv_max}, PA: ${defenderFinalPA}/${defender.stats.pa_max}`);
     }
 
     // --- Finalizar Acción y Cambiar Turno (si no acabó el juego) ---
-    if (gameOver) {
-      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
-    } else {
-      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-      setCurrentPlayerId(nextPlayerId);
-      const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
-      logMessage(`Turno de ${nextPlayerName}`);
+    if (!gameOver) {
+        // (Resetear concentración si aplica, como vimos antes)
+        // ... reset concentration logic ...
+
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+        logMessage(`Turno de ${nextPlayerName}`);
     }
   };
 
