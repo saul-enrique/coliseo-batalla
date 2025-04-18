@@ -26,6 +26,7 @@ const initialPlayer1Data = {
     cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
+    lanzar_obj: 60,
   },
   powers: [
     { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' },
@@ -67,6 +68,7 @@ const initialPlayer2Data = {
     salto: 70,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
+    lanzar_obj: 60,
   },
   powers: [
     { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
@@ -375,6 +377,23 @@ function App() {
              logMessage(`Turno de ${nextPlayerName}`);
         }
         return; // Terminar handleActionInitiate aquí para 'destrozar'
+      } else if (actionName === 'lanzar_obj') {
+        // Verificar concentración si fuera necesario en el futuro
+        // if (requiredConcentration > 0 && attackerData.concentrationLevel < requiredConcentration) { ... return; }
+
+        logMessage(`${attacker.name} inicia Acción: Lanzar Objeto!`);
+        // Resetear concentración si la acción la gastara
+        // if (requiredConcentration > 0) { setAttackerData... concentrationLevel: 0 ... }
+
+        setActionState({
+            active: true,
+            type: 'Lanzar Objeto', // Tipo de acción para handleDefenseSelection
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_defense'
+        });
+        // No se pasa turno aquí, esperamos la defensa
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'poder_ejemplo_1') { // Placeholder para poder
         logMessage(`${attacker.name} intenta usar Poder Ejemplo 1 (lógica no implementada)`);
         // Aquí iría la lógica del poder: restar PC, calcular efecto, etc.
@@ -448,6 +467,50 @@ function App() {
         } else {
           logMessage("¡Contraataque fallido!");
           damageToDefender = golpeDamage;
+        }
+      }
+    } else if (actionState.type === 'Lanzar Objeto') {
+      const baseDamage = attacker.actions.lanzar_obj; // Daño base del atacante
+
+      if (defenseType === 'esquivar') {
+        let [minRoll, maxRoll] = defender.defenseRanges.esquivar;
+        // Aplicar bono +2 a Esquivar (restando 2 al mínimo necesario)
+        minRoll = Math.max(1, minRoll - 2); // No bajar de 1
+        logMessage(`${defender.name} tira 1d20 para Esquivar contra Lanzar Objeto (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          logMessage("¡Esquivada fallida!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'bloquear') {
+        let [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        // Aplicar penalizador -2 a Bloquear (sumando 2 al mínimo necesario)
+        minRoll = Math.min(21, minRoll + 2); // No superar 21 (imposible de sacar)
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Lanzar Objeto (-2 Penalizador => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = 20; // Daño específico de bloqueo para Lanzar Objeto
+          logMessage(`¡Bloqueo exitoso! Recibe ${damageToDefenderPA} daño sólo a Armadura.`);
+          // La lógica de aplicación de daño a PA (incluyendo rotura) está más abajo
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'contraatacar') {
+        // Sin modificador para Contraatacar según las reglas
+        const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
+        logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          // Daño = 1/2 del daño de Lanzar Objeto del DEFENSOR
+          const counterDamage = Math.floor(defender.actions.lanzar_obj / 2);
+          damageToAttacker = counterDamage;
+          logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
+        } else {
+          logMessage("¡Contraataque fallido!");
+          damageToDefender = baseDamage;
         }
       }
     } else {
