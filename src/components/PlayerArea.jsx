@@ -1,10 +1,12 @@
 function PlayerArea({ 
   characterData, 
+  opponentData, 
   isCurrentPlayer, 
   handleActionInitiate, 
   actionState, 
   handleDefenseSelection,
   handleAtraparFollowupSelect,
+  handleRomperTargetSelect,
   atraparOptions 
 }) {
   return (
@@ -20,20 +22,46 @@ function PlayerArea({
 
       {isCurrentPlayer ? (
         // Es mi turno
-        actionState.stage === 'awaiting_followup' && actionState.attackerId === characterData.id ? (
-          // Estoy en modo Atrapar, muestro las opciones:
-          <div className="followup-options-section">
-            <h4>Elige Opción de Ataque (Atrapado):</h4>
-            <div className="followup-options-buttons">
+        actionState.stage === 'awaiting_followup' ? (
+          <div className="atrapar-followup-section">
+            <h4>Elige Opción de Atrapar:</h4>
+            <div className="atrapar-followup-buttons">
               {atraparOptions.map(option => (
                 <button
                   key={option.id}
-                  className="followup-button"
+                  className="action-button"
                   onClick={() => handleAtraparFollowupSelect(option.id)}
                 >
                   {option.name}
                 </button>
               ))}
+            </div>
+          </div>
+        ) : actionState.stage === 'awaiting_romper_target' ? (
+          <div className="romper-target-section">
+            <h4>Elige Parte a Romper:</h4>
+            <div className="romper-target-buttons">
+              <button
+                className="action-button"
+                onClick={() => handleRomperTargetSelect('arms')}
+                disabled={!opponentData || opponentData.stats.brokenParts.arms >= 2}
+              >
+                Brazos {opponentData?.stats.brokenParts.arms >= 2 ? '(MAX)' : ''}
+              </button>
+              <button
+                className="action-button"
+                onClick={() => handleRomperTargetSelect('legs')}
+                disabled={!opponentData || opponentData.stats.brokenParts.legs >= 2}
+              >
+                Piernas {opponentData?.stats.brokenParts.legs >= 2 ? '(MAX)' : ''}
+              </button>
+              <button
+                className="action-button"
+                onClick={() => handleRomperTargetSelect('ribs')}
+                disabled={!opponentData || opponentData.stats.brokenParts.ribs >= 2}
+              >
+                Costillas {opponentData?.stats.brokenParts.ribs >= 2 ? '(MAX)' : ''}
+              </button>
             </div>
           </div>
         ) : actionState.active ? (
@@ -44,15 +72,30 @@ function PlayerArea({
           <div className="actions-section">
             <h4>Acciones</h4>
             <div className="action-buttons">
-              {Object.entries(characterData.actions).map(([actionName, actionValue]) => (
-                <button
-                  key={actionName}
-                  className="action-button"
-                  onClick={() => handleActionInitiate(actionName)}
-                >
-                  {actionName}
-                </button>
-              ))}
+              {Object.entries(characterData.actions).map(([actionName, actionValue]) => {
+                const isRomperAction = actionName === 'romper';
+                const allOpponentPartsMaxBroken = opponentData &&
+                  opponentData.stats.brokenParts.arms >= 2 &&
+                  opponentData.stats.brokenParts.legs >= 2 &&
+                  opponentData.stats.brokenParts.ribs >= 2;
+
+                const isDisabledByTurn = !isCurrentPlayer || (actionState.active && actionState.stage !== null && actionState.stage !== 'awaiting_romper_target' && actionState.stage !== 'awaiting_followup');
+
+                return (
+                  <button
+                    key={actionName}
+                    className="action-button"
+                    onClick={() => handleActionInitiate(actionName)}
+                    disabled={
+                      isDisabledByTurn ||
+                      (isRomperAction && allOpponentPartsMaxBroken)
+                    }
+                  >
+                    {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
+                    {isRomperAction && allOpponentPartsMaxBroken ? ' (MAX)' : ''}
+                  </button>
+                );
+              })}
             </div>
             <h4>Poderes</h4>
             <div className="power-buttons">

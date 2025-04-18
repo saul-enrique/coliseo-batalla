@@ -1,5 +1,5 @@
 import './App.css'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PlayerArea from './components/PlayerArea'
 import GameBoard from './components/GameBoard'
 import GameLog from './components/GameLog'
@@ -12,7 +12,13 @@ const initialPlayer1Data = {
   stats: {
     pv_max: 230, pa_max: 300, pc_max: 500,
     currentPV: 230, currentPA: 300, currentPC: 500,
-    atrapar_bonus: 0, // Bono base para atrapar
+    atrapar_bonus: 0,
+    brokenParts: {
+      arms: 0, // 0=intacto, 1=roto 1 vez, 2=roto 2 veces (MAX)
+      legs: 0,
+      ribs: 0
+    },
+    lastActionType: null
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -29,7 +35,8 @@ const initialPlayer1Data = {
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
-    atrapar: true, // Nueva acción
+    romper: true,
+    atrapar: true
   },
   powers: [
     { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' },
@@ -50,7 +57,6 @@ const initialPlayer1Data = {
       romper: [11, 20],
       ayuda: [12, 20],
   },
-  lastActionType: null // Añadido para la regla de alternancia
 };
 
 // Datos de Shiryu de Dragón como Jugador 2
@@ -60,7 +66,13 @@ const initialPlayer2Data = {
   stats: {
     pv_max: 280, pa_max: 300, pc_max: 400,
     currentPV: 280, currentPA: 300, currentPC: 400,
-    atrapar_bonus: 0, // Bono base para atrapar
+    atrapar_bonus: 0,
+    brokenParts: {
+      arms: 0,
+      legs: 0,
+      ribs: 0
+    },
+    lastActionType: null
   },
   defenseRanges: {
     esquivar: [10, 20],
@@ -76,7 +88,8 @@ const initialPlayer2Data = {
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
-    atrapar: true, // Nueva acción
+    romper: true,
+    atrapar: true
   },
   powers: [
     { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
@@ -101,7 +114,6 @@ const initialPlayer2Data = {
       romper: [11, 20],
       ayuda: [12, 20],
   },
-  lastActionType: null // Añadido para la regla de alternancia
 };
 
 // Opciones de seguimiento para Atrapar
@@ -137,6 +149,20 @@ function App() {
   
   // Estado para el evento de la arena
   const [arenaEvent, setArenaEvent] = useState(null);
+  
+  // Monitorizar cambios en lastActionType de Seiya
+  useEffect(() => {
+    if (player1Data) {
+        console.log(`>>> P1 lastActionType changed to: ${player1Data.lastActionType}`);
+    }
+  }, [player1Data?.lastActionType]);
+
+  // Monitorizar cambios en lastActionType de Shiryu
+  useEffect(() => {
+    if (player2Data) {
+        console.log(`>>> P2 lastActionType changed to: ${player2Data.lastActionType}`);
+    }
+  }, [player2Data?.lastActionType]);
   
   // Función para tirar un dado de 20 caras
   const rollD20 = () => {
@@ -400,6 +426,8 @@ function App() {
 
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
+             const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+             setAttackerData(prev => ({ ...prev, lastActionType: actionName }));
              setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
              const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
              setCurrentPlayerId(nextPlayerId);
@@ -489,6 +517,8 @@ function App() {
 
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
+             const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+             setAttackerData(prev => ({ ...prev, lastActionType: actionName }));
              setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
              const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
              setCurrentPlayerId(nextPlayerId);
@@ -496,6 +526,174 @@ function App() {
              logMessage(`Turno de ${nextPlayerName}`);
         }
         return;
+      } else if (actionName === 'romper') {
+        logMessage(`${attacker.name} inicia la acción Romper.`);
+        const genericActionType = 'romper';
+
+        // --- Comprobar Regla de Alternancia ---
+        const currentAttackerState = currentPlayerId === player1Data.id ? player1Data : player2Data;
+        if (currentAttackerState.lastActionType === genericActionType) {
+            logMessage(`¡Regla de Alternancia! No se puede usar Romper dos veces seguidas.`);
+            setArenaEvent({
+                id: Date.now(), type: 'action_effect',
+                outcome: 'invalid',
+                message: `¡No puedes usar Romper consecutivamente!`
+            });
+            return;
+        }
+        // --- Fin Comprobación Alternancia ---
+
+        // Si la alternancia es válida, pasar a la selección de objetivo
+        setActionState({
+            active: true,
+            type: 'Romper',
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_romper_target'
+        });
+
+        // Informar al jugador que elija objetivo
+        setArenaEvent({
+            id: Date.now(), type: 'action_effect',
+            actionName: 'Romper',
+            message: `${attacker.name} se prepara para Romper... ¿Qué parte atacará?`
+        });
+        return;
+      } else if (actionName === 'romper_brazos' || actionName === 'romper_piernas' || actionName === 'romper_costillas') {
+        const partToBreak = actionName.split('_')[1]; // 'brazos', 'piernas', o 'costillas'
+        const genericActionType = 'romper'; // Para la regla de alternancia
+
+        // --- Comprobar Regla de Alternancia ---
+        // Leer el estado MÁS RECIENTE del jugador actual justo ahora
+        const currentAttackerState = currentPlayerId === player1Data.id ? player1Data : player2Data;
+        if (currentAttackerState.lastActionType === genericActionType) {
+            logMessage(`¡Regla de Alternancia! No se puede usar Romper dos veces seguidas. (LastAction: ${currentAttackerState.lastActionType})`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                outcome: 'invalid', 
+                message: `¡No puedes usar Romper consecutivamente!` 
+            });
+            return; // Salir sin pasar turno
+        }
+        // --- Fin Comprobación ---
+
+        console.log('[DEBUG] Check Alternancia Romper. LastAction:', currentAttackerState.lastActionType);
+        logMessage(`${attacker.name} intenta ${actionName.replace('_', ' ')} de ${defender.name}!`);
+
+        // 2. Comprobar Límite de Roturas (Máximo 2 por parte)
+        if (defender.stats.brokenParts[partToBreak] >= 2) {
+            logMessage(`¡${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} de ${defender.name} ya están rotos 2 veces!`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                outcome: 'invalid', 
+                message: `¡${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} ya no se pueden romper más!` 
+            });
+            return; // Salir sin pasar turno
+        }
+
+        // 3. Primera Tirada (Necesita 11-20)
+        const roll1 = rollD20();
+        logMessage(`Primer intento para romper ${partToBreak}: Tirada = ${roll1}`);
+        if (roll1 < 11) {
+            // Fallo en la primera tirada
+            logMessage("¡Primer intento fallido!");
+            setArenaEvent({
+                id: Date.now(), 
+                type: 'action_effect', 
+                actionName: `Romper ${partToBreak}`,
+                outcome: 'failure', 
+                message: `${attacker.name} falla el primer intento (Tirada: ${roll1})`
+            });
+            // Actualizar lastActionType y pasar turno
+            const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+            setAttackerData(prev => ({ 
+                ...prev, 
+                stats: { ...prev.stats, lastActionType: genericActionType } 
+            }));
+            setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+            logMessage(`Turno de ${nextPlayerName}`);
+            return;
+        }
+
+        // 4. Segunda Tirada (Necesita 11-20)
+        logMessage("¡Primer intento exitoso! Realizando segundo intento...");
+        const roll2 = rollD20();
+        logMessage(`Segundo intento para romper ${partToBreak}: Tirada = ${roll2}`);
+        if (roll2 < 11) {
+            // Fallo en la segunda tirada
+            logMessage("¡Segundo intento fallido!");
+            setArenaEvent({
+                id: Date.now(), 
+                type: 'action_effect', 
+                actionName: `Romper ${partToBreak}`,
+                outcome: 'failure', 
+                message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})`
+            });
+            // Actualizar lastActionType y pasar turno
+            const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+            setAttackerData(prev => ({ 
+                ...prev, 
+                stats: { ...prev.stats, lastActionType: genericActionType } 
+            }));
+            setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+            logMessage(`Turno de ${nextPlayerName}`);
+            return;
+        }
+
+        // 5. Éxito: Romper la Parte!
+        logMessage(`¡Éxito! ¡${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} de ${defender.name} rotos!`);
+        const currentBreaks = defender.stats.brokenParts[partToBreak];
+        const newBreaks = currentBreaks + 1;
+        const newBrokenParts = { ...defender.stats.brokenParts, [partToBreak]: newBreaks };
+
+        // Aplicar daño directo a PV
+        const damagePV = 20;
+        const gameOver = applyDamage(defender.id, damagePV, 'directPV');
+
+        // Actualizar estado del defensor con la parte rota
+        const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+        setDefenderData(prev => ({
+            ...prev,
+            stats: { ...prev.stats, brokenParts: newBrokenParts }
+        }));
+
+        // Construir mensaje de éxito y penalizador
+        let penaltyMessage = '';
+        if (partToBreak === 'brazos') penaltyMessage = `-1 Bloquear (${newBreaks} vez/veces)`;
+        if (partToBreak === 'piernas') penaltyMessage = `-1 Esquivar (${newBreaks} vez/veces)`;
+        if (partToBreak === 'costillas') penaltyMessage = `-1 Llave (${newBreaks} vez/veces)`;
+
+        setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: `Romper ${partToBreak}`,
+            outcome: 'success',
+            message: `¡${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. Penalizador: ${penaltyMessage}.`
+        });
+
+        // Actualizar lastActionType y pasar turno si no acabó el juego
+        if (!gameOver) {
+            const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+            setAttackerData(prev => ({ 
+                ...prev, 
+                stats: { ...prev.stats, lastActionType: genericActionType } 
+            }));
+
+            setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+            logMessage(`Turno de ${nextPlayerName}`);
+        }
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'atrapar') {
         logMessage(`${attacker.name} intenta Atrapar a ${defender.name}!`);
         
@@ -1328,8 +1526,12 @@ function App() {
       const setAttackerData = attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
 
       const changeTurnCallback = () => {
-        // Actualizar lastActionType del atacante
-        setAttackerData(prev => ({ ...prev, lastActionType: actionJustFinished }));
+        console.log('[DEBUG] Fin Acción (Defendida). Actualizando lastActionType a:', actionJustFinished);
+        // Actualizar lastActionType del atacante en el nivel raíz
+        setAttackerData(prev => ({ 
+            ...prev, 
+            lastActionType: actionJustFinished 
+        }));
 
         // Resetear estado y pasar turno
         setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
@@ -1396,6 +1598,10 @@ function App() {
 
         // Lógica para pasar turno (INMEDIATA para esta opción)
         if (!gameOver) {
+          // Actualizar lastActionType antes de pasar el turno
+          const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+          setAttackerData(prev => ({ ...prev, lastActionType: 'atrapar_op1' }));
+          
           setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
           const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
           setCurrentPlayerId(nextPlayerId);
@@ -1537,6 +1743,10 @@ function App() {
         
         // Pasar turno si el juego no ha terminado
         if (!gameOver) {
+          // Actualizar lastActionType antes de pasar el turno
+          const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+          setAttackerData(prev => ({ ...prev, lastActionType: 'atrapar_op3' }));
+          
           setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
           const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
           setCurrentPlayerId(nextPlayerId);
@@ -1624,6 +1834,105 @@ function App() {
     }
   };
 
+  // Añadir el nuevo handler para la selección de objetivo de Romper
+  const handleRomperTargetSelect = (partToBreak) => {
+    const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
+    const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
+    const setAttackerData = actionState.attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+    const setDefenderData = actionState.defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+    const genericActionType = 'romper';
+    let gameOver = false;
+
+    logMessage(`${attacker.name} elige romper ${partToBreak} de ${defender.name}!`);
+
+    // 1. Comprobar Límite de Roturas (Máximo 2 por parte)
+    if (defender.stats.brokenParts[partToBreak] >= 2) {
+      logMessage(`ERROR LÓGICO: Intento de romper ${partToBreak} que ya está al máximo (UI debería haberlo prevenido).`);
+      setArenaEvent({ 
+        id: Date.now(), 
+        type: 'action_effect', 
+        outcome: 'invalid', 
+        message: `${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} ya no se pueden romper más.` 
+      });
+      return; // Simplemente salir, sin cambiar estado ni turno
+    }
+
+    // 2. Primera Tirada (Necesita 11-20)
+    const roll1 = rollD20();
+    logMessage(`Primer intento para romper ${partToBreak}: Tirada = ${roll1}`);
+    if (roll1 < 11) {
+        logMessage("¡Primer intento fallido!");
+        setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: `Romper ${partToBreak}`,
+            outcome: 'failure', 
+            message: `${attacker.name} falla el primer intento (Tirada: ${roll1})`
+        });
+        setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        return;
+    }
+
+    // 3. Segunda Tirada (Necesita 11-20)
+    logMessage("¡Primer intento exitoso! Realizando segundo intento...");
+    const roll2 = rollD20();
+    logMessage(`Segundo intento para romper ${partToBreak}: Tirada = ${roll2}`);
+    if (roll2 < 11) {
+        logMessage("¡Segundo intento fallido!");
+        setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: `Romper ${partToBreak}`,
+            outcome: 'failure', 
+            message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})`
+        });
+        setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        return;
+    }
+
+    // 4. Éxito: Romper la Parte!
+    logMessage(`¡Éxito! ¡${partToBreak} de ${defender.name} rotos!`);
+    const currentBreaks = defender.stats.brokenParts[partToBreak];
+    const newBreaks = currentBreaks + 1;
+    const newBrokenParts = { ...defender.stats.brokenParts, [partToBreak]: newBreaks };
+    const damagePV = 20;
+    gameOver = applyDamage(defender.id, damagePV, 'directPV');
+    setDefenderData(prev => ({
+        ...prev,
+        stats: { ...prev.stats, brokenParts: newBrokenParts }
+    }));
+
+    let penaltyMessage = '';
+    if (partToBreak === 'arms') penaltyMessage = `-1 Bloquear (${newBreaks} vez/veces)`;
+    if (partToBreak === 'legs') penaltyMessage = `-1 Esquivar (${newBreaks} vez/veces)`;
+    if (partToBreak === 'ribs') penaltyMessage = `-1 Llave (${newBreaks} vez/veces)`;
+
+    setArenaEvent({
+        id: Date.now(), 
+        type: 'action_effect', 
+        actionName: `Romper ${partToBreak}`,
+        outcome: 'success',
+        message: `¡${partToBreak} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. Penalizador: ${penaltyMessage}.`
+    });
+
+    // 5. Actualizar lastActionType y pasar turno si no acabó el juego
+    if (!gameOver) {
+        setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+    }
+  };
+
   return (
     <div className="app-container">
       {actionState.stage === 'game_over' ? (
@@ -1637,12 +1946,14 @@ function App() {
       ) : (
         <div className="game-container">
           <PlayerArea 
-            characterData={player1Data} 
+            characterData={player1Data}
+            opponentData={player2Data}
             isCurrentPlayer={currentPlayerId === player1Data.id}
             handleActionInitiate={handleActionInitiate}
             actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
             handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+            handleRomperTargetSelect={handleRomperTargetSelect}
             atraparOptions={atraparFollowupOptions}
           />
           <div className="center-column">
@@ -1650,12 +1961,14 @@ function App() {
             <GameLog log={gameLog} />
           </div>
           <PlayerArea 
-            characterData={player2Data} 
+            characterData={player2Data}
+            opponentData={player1Data}
             isCurrentPlayer={currentPlayerId === player2Data.id}
             handleActionInitiate={handleActionInitiate}
             actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
             handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+            handleRomperTargetSelect={handleRomperTargetSelect}
             atraparOptions={atraparFollowupOptions}
           />
         </div>

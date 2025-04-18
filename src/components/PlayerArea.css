@@ -112,4 +112,42 @@
 .followup-button:active {
   transform: translateY(0);
   background-color: #3a3a3a;
+}
+
+.romper-target-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.romper-target-section h4 {
+  color: #ffd700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.romper-target-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.romper-target-buttons button {
+  padding: 0.5rem 1rem;
+  background-color: #4a4a4a;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.romper-target-buttons button:hover {
+  background-color: #666;
+  transform: translateY(-2px);
+}
+
+.romper-target-buttons button:active {
+  transform: translateY(0);
 } 
