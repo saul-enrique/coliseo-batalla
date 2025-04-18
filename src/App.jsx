@@ -12,6 +12,7 @@ const initialPlayer1Data = {
   stats: {
     pv_max: 230, pa_max: 300, pc_max: 500,
     currentPV: 230, currentPA: 300, currentPC: 500,
+    atrapar_bonus: 0, // Bono base para atrapar
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -28,6 +29,7 @@ const initialPlayer1Data = {
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
+    atrapar: true, // Nueva acción
   },
   powers: [
     { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' },
@@ -57,6 +59,7 @@ const initialPlayer2Data = {
   stats: {
     pv_max: 280, pa_max: 300, pc_max: 400,
     currentPV: 280, currentPA: 300, currentPC: 400,
+    atrapar_bonus: 0, // Bono base para atrapar
   },
   defenseRanges: {
     esquivar: [10, 20],
@@ -72,6 +75,7 @@ const initialPlayer2Data = {
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
+    atrapar: true, // Nueva acción
   },
   powers: [
     { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
@@ -97,6 +101,17 @@ const initialPlayer2Data = {
       ayuda: [12, 20],
   }
 };
+
+// Opciones de seguimiento para Atrapar
+const atraparFollowupOptions = [
+  { id: 'atrapar_op1', name: 'Golpes Múltiples (3d20 Impar=20 Daño)' },
+  { id: 'atrapar_op2', name: 'Ataque Potente (80 Daño, Solo Bloqueo)' },
+  { id: 'atrapar_op3', name: 'Ataques Rápidos (3x20 Daño, Solo Bloqueo)' },
+  { id: 'atrapar_op4', name: 'Ataque Vulnerante (60 Daño, -2 Def Rival)' },
+  { id: 'atrapar_op5', name: 'Llave Mejorada (+3 Bono)' },
+  { id: 'atrapar_op6', name: 'Romper Mejorado (+4 Bono)' },
+  { id: 'atrapar_op7', name: 'Ataque Imbloqueable (60 Daño, Solo Esquiva)' },
+];
 
 function App() {
   // Estado para los datos completos de cada personaje
@@ -467,6 +482,63 @@ function App() {
              logMessage(`Turno de ${nextPlayerName}`);
         }
         return;
+      } else if (actionName === 'atrapar') {
+        logMessage(`${attacker.name} intenta Atrapar a ${defender.name}!`);
+        
+        // Realizar la tirada y aplicar el bono
+        const roll = rollD20();
+        const finalRoll = roll + attacker.stats.atrapar_bonus;
+        
+        // Mostrar el resultado de la tirada
+        if (attacker.stats.atrapar_bonus !== 0) {
+          logMessage(`${attacker.name} sacó ${roll} + ${attacker.stats.atrapar_bonus} = ${finalRoll} (Necesita 11-20)`);
+        } else {
+          logMessage(`${attacker.name} sacó ${roll} (Necesita 11-20)`);
+        }
+        
+        // Comprobar el resultado
+        if (finalRoll < 11) {
+          // Fallo
+          logMessage("¡El atrape falló!");
+          setArenaEvent({
+            id: Date.now(),
+            type: 'action_effect',
+            actionName: 'Atrapar',
+            attackerName: attacker.name,
+            defenderName: defender.name,
+            outcome: 'failure',
+            message: `${attacker.name} falla al intentar atrapar a ${defender.name} (Tirada: ${finalRoll})`
+          });
+          
+          // Pasar turno
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+          const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+          setCurrentPlayerId(nextPlayerId);
+          const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+          logMessage(`Turno de ${nextPlayerName}`);
+        } else {
+          // Éxito
+          logMessage("¡Rival atrapado!");
+          setArenaEvent({
+            id: Date.now(),
+            type: 'action_effect',
+            actionName: 'Atrapar',
+            attackerName: attacker.name,
+            defenderName: defender.name,
+            outcome: 'success',
+            message: `${attacker.name} atrapa a ${defender.name} (Tirada: ${finalRoll}). ¡Elige una opción de ataque!`
+          });
+          
+          // Actualizar el estado para esperar la elección de seguimiento
+          setActionState({
+            active: true,
+            type: 'Atrapar',
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_followup'
+          });
+        }
+        return;
       } else if (actionName === 'lanzar_obj') {
         // Verificar concentración si fuera necesario en el futuro
         // if (requiredConcentration > 0 && attackerData.concentrationLevel < requiredConcentration) { ... return; }
@@ -554,8 +626,11 @@ function App() {
     }
   };
 
+  // Función para crear un retraso
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
   // Función para manejar la selección de defensa
-  const handleDefenseSelection = (defenseType) => {
+  const handleDefenseSelection = async (defenseType) => {
     if (!actionState.active || actionState.stage !== 'awaiting_defense') return;
 
     const attackerId = actionState.attackerId;
@@ -941,6 +1016,285 @@ function App() {
           damageToDefender = baseDamage;
         }
       }
+    } else if (actionState.type === 'Atrapar_Opcion2') {
+      // Obtener los valores de daño desde el estado de la acción
+      const baseDamage = actionState.baseDamage; // 80 daño si falla el bloqueo
+      const blockDamagePA = actionState.blockDamagePA; // 20 daño a PA si el bloqueo tiene éxito
+
+      if (defenseType === 'bloquear') {
+        // Obtener el rango para bloquear
+        const [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Ataque Potente (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = blockDamagePA; // 20 daño solo a PA si el bloqueo tiene éxito
+          logMessage(`¡Bloqueo exitoso! Recibe ${damageToDefenderPA} daño solo a PA.`);
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = baseDamage; // 80 daño normal si el bloqueo falla
+        }
+      } else if (defenseType === 'esquivar' || defenseType === 'contraatacar') {
+        // Defensa inválida para Ataque Potente
+        logMessage(`¡Defensa inválida! El Ataque Potente solo puede ser bloqueado.`);
+        defenseSuccessful = false;
+        damageToDefender = baseDamage; // 80 daño normal si se usa una defensa inválida
+        
+        // Crear un evento para mostrar que la defensa es inválida
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          defenseType: defenseType === 'esquivar' ? 'Esquivar' : 'Contraatacar',
+          outcome: 'invalid',
+          message: `¡Defensa inválida! El Ataque Potente solo puede ser bloqueado.`
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+      }
+    } else if (actionState.type === 'Atrapar_Opcion4') {
+      // Obtener los valores desde el estado de la acción
+      const baseDamage = actionState.baseDamage; // 60 daño si falla la defensa
+      const blockDamagePA = actionState.blockDamagePA; // 10 daño a PA si el bloqueo tiene éxito
+      const defensePenalty = actionState.defensePenalty; // -2 penalizador para el defensor
+
+      if (defenseType === 'esquivar') {
+        // Obtener el rango base para esquivar
+        const [minRollBase, maxRoll] = defender.defenseRanges.esquivar;
+        // Aplicar el penalizador (hacer más difícil esquivar)
+        const minRoll = Math.min(21, minRollBase + 2); // Sumamos 2 para hacerlo más difícil
+        
+        logMessage(`${defender.name} tira 1d20 para Esquivar contra Ataque Vulnerante (Necesita ${minRoll}-${maxRoll} con penalizador -2): ¡Sacó ${roll}!`);
+        
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          logMessage("¡Esquivada fallida!");
+          damageToDefender = baseDamage; // 60 daño normal si la esquiva falla
+        }
+      } else if (defenseType === 'bloquear') {
+        // Obtener el rango base para bloquear
+        const [minRollBase, maxRoll] = defender.defenseRanges.bloquear;
+        // Aplicar el penalizador (hacer más difícil bloquear)
+        const minRoll = Math.min(21, minRollBase + 2); // Sumamos 2 para hacerlo más difícil
+        
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Ataque Vulnerante (Necesita ${minRoll}-${maxRoll} con penalizador -2): ¡Sacó ${roll}!`);
+        
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = blockDamagePA; // 10 daño solo a PA si el bloqueo tiene éxito
+          logMessage(`¡Bloqueo exitoso! Recibe ${damageToDefenderPA} daño solo a PA.`);
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = baseDamage; // 60 daño normal si el bloqueo falla
+        }
+      } else if (defenseType === 'contraatacar') {
+        // Obtener el rango base para contraatacar
+        const [minRollBase, maxRoll] = defender.defenseRanges.contraatacar;
+        // Aplicar el penalizador (hacer más difícil contraatacar)
+        const minRoll = Math.min(21, minRollBase + 2); // Sumamos 2 para hacerlo más difícil
+        
+        logMessage(`${defender.name} tira 1d20 para Contraatacar contra Ataque Vulnerante (Necesita ${minRoll}-${maxRoll} con penalizador -2): ¡Sacó ${roll}!`);
+        
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Contraatacar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          // Daño = 1/2 del daño de Golpe del DEFENSOR
+          const counterDamage = Math.floor(defender.actions.golpe / 2);
+          damageToAttacker = counterDamage;
+          logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
+        } else {
+          logMessage("¡Contraataque fallido!");
+          damageToDefender = baseDamage; // 60 daño normal si el contraataque falla
+        }
+      }
+    } else if (actionState.type === 'Atrapar_Opcion3') {
+      // Obtener el estado actual de la secuencia
+      const { hitNumber, totalHits, baseDamagePerHit, blockDamagePA } = actionState;
+      
+      // Inicializar variables para este golpe
+      let hitDamageNormal = 0;
+      let hitDamagePA = 0;
+      let hitBlocked = false;
+      let currentGameOver = false;
+
+      // Validar y procesar la defensa
+      if (defenseType === 'bloquear') {
+        // Obtener el rango para bloquear
+        const [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Ataque Rápido ${hitNumber} (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure',
+          hitNumber: hitNumber,
+          totalHits: totalHits
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        // Pequeña pausa opcional para ver la tirada
+        await delay(500);
+        
+        if (roll >= minRoll && roll <= maxRoll) {
+          hitBlocked = true;
+          hitDamagePA = blockDamagePA;
+          logMessage(`¡Bloqueo exitoso en golpe ${hitNumber}! Recibe ${hitDamagePA} daño a PA.`);
+        } else {
+          hitBlocked = false;
+          hitDamageNormal = baseDamagePerHit;
+          logMessage(`¡Bloqueo fallido en golpe ${hitNumber}! Recibe ${hitDamageNormal} daño.`);
+        }
+      } else {
+        // Defensa inválida
+        logMessage(`¡Defensa inválida en golpe ${hitNumber}! Solo se puede bloquear.`);
+        hitBlocked = false;
+        hitDamageNormal = baseDamagePerHit;
+        
+        // Crear evento para defensa inválida
+        diceRollEvent = {
+          id: Date.now(),
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          defenseType: defenseType === 'esquivar' ? 'Esquivar' : 'Contraatacar',
+          outcome: 'invalid',
+          hitNumber: hitNumber,
+          totalHits: totalHits,
+          message: `¡Defensa inválida! Solo se puede bloquear.`
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
+        
+        // Pequeña pausa opcional para ver la tirada
+        await delay(500);
+      }
+
+      // Aplicar daño de este golpe
+      if (hitDamagePA > 0) {
+        currentGameOver = applyDamage(defender.id, hitDamagePA, 'directPA');
+      }
+      if (hitDamageNormal > 0) {
+        currentGameOver = applyDamage(defender.id, hitDamageNormal, 'normal');
+      }
+
+      // Mostrar resultado del golpe actual
+      let hitOutcomeMessage = '';
+      if (hitBlocked) {
+        hitOutcomeMessage = `Golpe ${hitNumber} Bloqueado (${hitDamagePA} Daño PA).`;
+      } else if (defenseType !== 'bloquear') {
+        hitOutcomeMessage = `Golpe ${hitNumber} impacta (${hitDamageNormal} Daño) - ¡Defensa inválida!`;
+      } else { // Block failed
+        hitOutcomeMessage = `Golpe ${hitNumber} impacta (${hitDamageNormal} Daño).`;
+      }
+      
+      setArenaEvent({
+        id: Date.now(),
+        type: 'action_effect',
+        actionName: `Atrapar: Ataques Rápidos (Golpe ${hitNumber}/${totalHits})`,
+        message: hitOutcomeMessage,
+        rollValue: roll
+      });
+      
+      // Pausa para leer el resultado
+      await delay(1500);
+
+      // Decidir siguiente paso
+      if (!currentGameOver && hitNumber < totalHits) {
+        // Hay más golpes por venir
+        const nextHit = hitNumber + 1;
+        
+        // Actualizar estado para el siguiente golpe
+        setActionState(prev => ({
+          ...prev,
+          hitNumber: nextHit,
+          stage: 'awaiting_defense'
+        }));
+        
+        // Actualizar ArenaDisplay para el siguiente golpe
+        setArenaEvent({
+          id: Date.now(),
+          type: 'action_effect',
+          actionName: 'Atrapar: Ataques Rápidos',
+          message: `Ataque Rápido (${nextHit} de 3). ${defender.name}, ¡solo puedes Bloquear!`
+        });
+        
+        return; // Salir para esperar la siguiente defensa
+      }
+      
+      // Si llegamos aquí, es el último golpe o hubo game over
+      gameOver = currentGameOver; // Actualizar la variable global gameOver
     } else {
       logMessage(`Resolución para acción tipo ${actionState.type} no implementada.`);
       defenseSuccessful = true; // Asumir éxito para pasar turno
@@ -1042,14 +1396,187 @@ function App() {
       console.log("[DEBUG] Juego NO terminado. Reseteando estado y cambiando turno..."); // LOG 11
       // (Resetear concentración si aplica...)
 
-      // Retrasar el cambio de turno para permitir que se vea la animación de tirada
-      setTimeout(() => {
+      // Para Atrapar_Opcion3, cambiar turno inmediatamente sin setTimeout
+      if (actionState.type === 'Atrapar_Opcion3') {
         setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
         setCurrentPlayerId(nextPlayerId);
         const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
         logMessage(`Turno de ${nextPlayerName}`);
-      }, 2500); // 2.5 segundos después de la tirada (aumentado de 2000 a 2500)
+      } else {
+        // Para otras acciones, mantener el comportamiento actual con setTimeout
+        setTimeout(() => {
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+          const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+          setCurrentPlayerId(nextPlayerId);
+          const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+          logMessage(`Turno de ${nextPlayerName}`);
+        }, 2500); // 2.5 segundos después de la tirada (aumentado de 2000 a 2500)
+      }
+    }
+  };
+
+  // Función para manejar la selección de opción de seguimiento de Atrapar
+  const handleAtraparFollowupSelect = (optionId) => {
+    const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
+    const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
+    const setDefenderData = actionState.defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data; // Necesario para applyDamage
+    let gameOver = false;
+
+    logMessage(`${attacker.name} elige la opción de Atrapar: ${optionId}`);
+
+    switch (optionId) {
+      case 'atrapar_op1': { // Llaves {} para crear un nuevo scope para const/let
+        logMessage(`${attacker.name} usa Golpes Múltiples!`);
+        const rolls = [rollD20(), rollD20(), rollD20()];
+        const oddCount = rolls.filter(r => r % 2 !== 0).length;
+        const damage = oddCount * 20; // 20 Ptos Daño por cada Impar
+
+        logMessage(`Tiradas: ${rolls.join(', ')}. Aciertos (impares): ${oddCount}. Daño total: ${damage}`);
+
+        if (damage > 0) {
+          // Aplicamos daño normal (asumimos 50/50 PV/PA)
+          gameOver = applyDamage(defender.id, damage, 'normal');
+          setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: 'Atrapar: Golpes Múltiples',
+            attackerName: attacker.name, 
+            defenderName: defender.name,
+            damage: damage, 
+            hits: oddCount, 
+            successfulRolls: rolls.filter(r => r % 2 !== 0), // Pasamos los rolls impares
+            message: `${attacker.name} conecta ${oddCount} golpes (${rolls.filter(r => r % 2 !== 0).join(', ')}) causando ${damage} de daño.`
+          });
+        } else {
+          logMessage("Ningún golpe acertó.");
+          setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: 'Atrapar: Golpes Múltiples',
+            attackerName: attacker.name, 
+            defenderName: defender.name,
+            outcome: 'failure', 
+            message: `${attacker.name} falla todos los golpes (Tiradas: ${rolls.join(', ')}).`
+          });
+        }
+
+        // Lógica para pasar turno (INMEDIATA para esta opción)
+        if (!gameOver) {
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+          const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+          setCurrentPlayerId(nextPlayerId);
+          const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+          logMessage(`Turno de ${nextPlayerName}`);
+        }
+        break; // Fin de case 'atrapar_op1'
+      }
+
+      case 'atrapar_op2': {
+        logMessage(`${attacker.name} usa Ataque Potente (Opción 2)!`);
+        
+        // Actualizar el estado para pasar a la fase de defensa
+        setActionState({
+          active: true,
+          type: 'Atrapar_Opcion2', // Tipo único
+          attackerId: attacker.id,
+          defenderId: defender.id,
+          stage: 'awaiting_defense',
+          baseDamage: 80, // Daño si falla el bloqueo
+          blockDamagePA: 20, // Daño especial si el bloqueo tiene éxito
+          allowedDefenses: ['bloquear'] // Solo se permite bloquear
+        });
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          id: Date.now(), 
+          type: 'action_effect', 
+          actionName: 'Atrapar: Ataque Potente',
+          attackerName: attacker.name, 
+          defenderName: defender.name,
+          message: `${attacker.name} lanza un Ataque Potente (80 Daño). ${defender.name}, ¡solo puedes intentar Bloquear!`
+        });
+        
+        break;
+      }
+
+      case 'atrapar_op4': {
+        logMessage(`${attacker.name} usa Ataque Vulnerante (Opción 4)!`);
+        
+        // Actualizar el estado para pasar a la fase de defensa
+        setActionState({
+          active: true,
+          type: 'Atrapar_Opcion4', // Tipo único
+          attackerId: attacker.id,
+          defenderId: defender.id,
+          stage: 'awaiting_defense',
+          baseDamage: 60,      // Daño si falla defensa/no bloqueo
+          blockDamagePA: 10,   // Daño especial si bloqueo tiene éxito
+          defensePenalty: -2   // Penalizador para el defensor
+        });
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          id: Date.now(), 
+          type: 'action_effect', 
+          actionName: 'Atrapar: Ataque Vulnerante',
+          attackerName: attacker.name, 
+          defenderName: defender.name,
+          message: `${attacker.name} lanza un Ataque Vulnerante (60 Daño). ¡${defender.name} defiende con -2 a sus tiradas!`
+        });
+        
+        break;
+      }
+
+      case 'atrapar_op3': {
+        logMessage(`${attacker.name} inicia Ataques Rápidos (Opción 3)!`);
+        // Configurar estado para el PRIMER golpe
+        setActionState({
+            active: true,
+            type: 'Atrapar_Opcion3', // Tipo único para la secuencia
+            stage: 'awaiting_defense', // Espera defensa del primer golpe
+            hitNumber: 1,            // Golpe actual
+            totalHits: 3,            // Total de golpes en la secuencia
+            baseDamagePerHit: 20,    // Daño normal por golpe fallido
+            blockDamagePA: 10,       // Daño a PA si se bloquea
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            allowedDefenses: ['bloquear'] // Solo se permite bloquear
+        });
+        // Informar al usuario
+        setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: 'Atrapar: Ataques Rápidos',
+            attackerName: attacker.name, 
+            defenderName: defender.name,
+            message: `Inicio de Ataques Rápidos (Golpe 1 de 3). ${defender.name}, ¡solo puedes Bloquear!`
+        });
+        break; // Espera la llamada a handleDefenseSelection
+      }
+
+      // case 'atrapar_op3':
+      //   // Lógica para opción 3...
+      //   break;
+
+      default: {
+        // Caso por defecto si algo va mal, o para lógica placeholder
+        logMessage(`Lógica para opción ${optionId} pendiente.`);
+        // Placeholder MUY BÁSICO (reemplazar con lógica real después):
+        setArenaEvent({
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: 'Atrapar',
+            message: `Se ejecutó ${optionId} (Lógica Pendiente)`
+        });
+        // Resetear y pasar turno (Temporal)
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+        logMessage(`Turno de ${nextPlayerName}`);
+        break;
+      }
     }
   };
 
@@ -1071,6 +1598,8 @@ function App() {
             handleActionInitiate={handleActionInitiate}
             actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
+            handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+            atraparOptions={atraparFollowupOptions}
           />
           <div className="center-column">
             <ArenaDisplay event={arenaEvent} />
@@ -1082,6 +1611,8 @@ function App() {
             handleActionInitiate={handleActionInitiate}
             actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
+            handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+            atraparOptions={atraparFollowupOptions}
           />
         </div>
       )}
