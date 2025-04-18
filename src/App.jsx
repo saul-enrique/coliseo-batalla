@@ -66,6 +66,7 @@ const initialPlayer2Data = {
     golpe: 60,
     llave: 60,
     salto: 70,
+    embestir: 60,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
@@ -394,6 +395,17 @@ function App() {
         });
         // No se pasa turno aquí, esperamos la defensa
         return; // Terminar handleActionInitiate
+      } else if (actionName === 'embestir') {
+        // Verificar/gastar concentración si fuera necesario en el futuro
+        logMessage(`${attacker.name} inicia Acción: Embestir!`);
+        setActionState({
+            active: true,
+            type: 'Embestir', // Tipo de acción para handleDefenseSelection
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_defense'
+        });
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'poder_ejemplo_1') { // Placeholder para poder
         logMessage(`${attacker.name} intenta usar Poder Ejemplo 1 (lógica no implementada)`);
         // Aquí iría la lógica del poder: restar PC, calcular efecto, etc.
@@ -506,6 +518,48 @@ function App() {
           defenseSuccessful = true;
           // Daño = 1/2 del daño de Lanzar Objeto del DEFENSOR
           const counterDamage = Math.floor(defender.actions.lanzar_obj / 2);
+          damageToAttacker = counterDamage;
+          logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
+        } else {
+          logMessage("¡Contraataque fallido!");
+          damageToDefender = baseDamage;
+        }
+      }
+    } else if (actionState.type === 'Embestir') {
+      const baseDamage = attacker.actions.embestir; // Daño base de Embestir del atacante
+
+      if (defenseType === 'esquivar') {
+        // Sin modificador para Esquivar
+        const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
+        logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          logMessage("¡Esquivada fallida!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'bloquear') {
+        // Aplicar bono +2 a Bloquear
+        let [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Embestir (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = 20; // Daño específico de bloqueo para Embestir
+          logMessage(`¡Bloqueo exitoso! Recibe ${damageToDefenderPA} daño sólo a Armadura.`);
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'contraatacar') {
+        // Sin modificador para Contraatacar
+        const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
+        logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          // Daño = 1/2 del daño de Embestir del DEFENSOR
+          const counterDamage = Math.floor(defender.actions.embestir / 2);
           damageToAttacker = counterDamage;
           logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
         } else {
