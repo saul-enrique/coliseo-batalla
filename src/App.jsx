@@ -1014,7 +1014,7 @@ function App() {
           damage: damageToAttacker,
           targetName: attacker.name
         });
-      }, 1500); // 1.5 segundos después de la tirada
+      }, 2000); // 2 segundos después de la tirada (aumentado de 1500 a 2000)
       
       console.log(`[DEBUG] Después de aplicar daño al ATACANTE. gameOver = ${gameOver}`); // LOG 5
     }
@@ -1036,7 +1036,7 @@ function App() {
             damage: damageToDefender,
             targetName: defender.name
           });
-        }, 1500); // 1.5 segundos después de la tirada
+        }, 2000); // 2 segundos después de la tirada (aumentado de 1500 a 2000)
         
       } else { // Bloqueo exitoso (Daño solo a PA)
         console.log("[DEBUG] Bloqueo exitoso - Aplicando daño a PA..."); // LOG 7b
@@ -1074,7 +1074,7 @@ function App() {
             damage: damageToDefenderPA,
             targetName: defender.name
           });
-        }, 1500); // 1.5 segundos después de la tirada
+        }, 2000); // 2 segundos después de la tirada (aumentado de 1500 a 2000)
         
         if (gameOver) {
           setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
@@ -1099,7 +1099,7 @@ function App() {
         setCurrentPlayerId(nextPlayerId);
         const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
         logMessage(`Turno de ${nextPlayerName}`);
-      }, 2000); // 2 segundos después de la tirada
+      }, 2500); // 2.5 segundos después de la tirada (aumentado de 2000 a 2500)
     }
   };
 

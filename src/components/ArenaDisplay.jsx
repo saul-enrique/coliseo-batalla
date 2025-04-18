@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './ArenaDisplay.css';
 
 // Constantes para la animación
-const ANIMATION_DURATION = 1000; // Duración total de la animación en ms
-const CYCLE_INTERVAL = 75; // Intervalo entre cambios de número en ms
+const ANIMATION_DURATION = 1500; // Duración total de la animación en ms
+const CYCLE_INTERVAL = 100; // Intervalo entre cambios de número en ms
 
 const ArenaDisplay = ({ event }) => {
   // Estado para el número que se muestra durante la animación
