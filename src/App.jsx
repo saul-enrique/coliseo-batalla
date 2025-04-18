@@ -3,6 +3,7 @@ import { useState } from 'react'
 import PlayerArea from './components/PlayerArea'
 import GameBoard from './components/GameBoard'
 import GameLog from './components/GameLog'
+import ArenaDisplay from './components/ArenaDisplay'
 
 // Datos iniciales para los personajes
 const initialPlayer1Data = {
@@ -117,6 +118,9 @@ function App() {
   // Estado para el registro del juego
   const [gameLog, setGameLog] = useState([]);
   
+  // Estado para el evento de la arena
+  const [arenaEvent, setArenaEvent] = useState(null);
+  
   // Función para tirar un dado de 20 caras
   const rollD20 = () => {
     return Math.floor(Math.random() * 20) + 1;
@@ -126,16 +130,6 @@ function App() {
   const logMessage = (message) => {
     console.log(message); // También loguea en consola para debugging
     setGameLog(prevLog => [message, ...prevLog]); // Añade al principio del array
-  };
-  
-  // Función para reiniciar el juego
-  const handlePlayAgain = () => {
-    logMessage("Reiniciando el juego...");
-    setPlayer1Data(initialPlayer1Data);
-    setPlayer2Data(initialPlayer2Data);
-    setCurrentPlayerId(initialPlayer1Data.id); // Reinicia al jugador 1 (Seiya)
-    setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-    setGameLog([]); // Limpia el log
   };
   
   // Función auxiliar para aplicar daño a un jugador
@@ -201,6 +195,16 @@ function App() {
     return isGameOver;
   };
   
+  // Función para reiniciar el juego
+  const handlePlayAgain = () => {
+    logMessage("Reiniciando el juego...");
+    setPlayer1Data(initialPlayer1Data);
+    setPlayer2Data(initialPlayer2Data);
+    setCurrentPlayerId(initialPlayer1Data.id); // Reinicia al jugador 1 (Seiya)
+    setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+    setGameLog([]); // Limpia el log
+  };
+  
   // Función para manejar la iniciación de una acción
   const handleActionInitiate = (actionName) => {
     if (!actionState.active) { // Solo iniciar si no hay otra acción activa
@@ -216,8 +220,24 @@ function App() {
           defenderId: defender.id,
           stage: 'awaiting_defense'
         });
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Golpe',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
       } else if (actionName === 'llave') {
         logMessage(`${attacker.name} intenta una Llave contra ${defender.name}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Llave',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
 
         let attackerRoll = 0;
         let defenderRoll = 0;
@@ -237,6 +257,16 @@ function App() {
           defenderRoll = defenderBaseRoll;
 
           logMessage(`Tirada Llave: ${attacker.name} (${attackerBaseRoll}+2 = ${attackerRoll}) vs ${defender.name} (${defenderRoll})`);
+          
+          // Actualizar el evento de la arena con la tirada
+          setArenaEvent({
+            type: 'dice_roll',
+            rollerName: attacker.name,
+            rollValue: attackerRoll,
+            targetName: defender.name,
+            actionName: 'Llave',
+            stage: ties + 1
+          });
 
           if (attackerRoll > defenderRoll) {
             winnerId = attacker.id;
@@ -265,6 +295,17 @@ function App() {
         // Aplicar daño si hubo un ganador
         if (winnerId && loserId) {
           gameOver = applyDamage(loserId, currentDamage);
+          
+          // Actualizar el evento de la arena con el resultado
+          const winner = winnerId === attacker.id ? attacker : defender;
+          const loser = loserId === attacker.id ? attacker : defender;
+          setArenaEvent({
+            type: 'action_effect',
+            actionName: 'Llave',
+            winnerName: winner.name,
+            loserName: loser.name,
+            damage: currentDamage
+          });
         }
 
         // Pasar turno si el juego no ha terminado
@@ -281,6 +322,14 @@ function App() {
         return; // Terminar handleActionInitiate aquí para 'llave'
       } else if (actionName === 'presa') {
         logMessage(`${attacker.name} intenta una Presa contra ${defender.name}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Presa',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
 
         let totalDamageAccumulated = 0;
         let successfulHits = 0;
@@ -289,6 +338,16 @@ function App() {
         for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
             const roll = rollD20();
             const isOdd = roll % 2 !== 0;
+            
+            // Actualizar el evento de la arena con la tirada
+            setArenaEvent({
+              type: 'dice_roll',
+              rollerName: attacker.name,
+              rollValue: roll,
+              isOdd: isOdd,
+              actionName: 'Presa',
+              stage: i + 1
+            });
 
             if (isOdd) {
                 successfulHits++;
@@ -309,8 +368,27 @@ function App() {
         if (totalDamageAccumulated > 0) {
              logMessage(`Daño total de la Presa: ${totalDamageAccumulated} directo a PV.`);
              gameOver = applyDamage(defender.id, totalDamageAccumulated, 'directPV');
+             
+             // Actualizar el evento de la arena con el resultado
+             setArenaEvent({
+               type: 'action_effect',
+               actionName: 'Presa',
+               attackerName: attacker.name,
+               defenderName: defender.name,
+               damage: totalDamageAccumulated,
+               hits: successfulHits
+             });
         } else {
              logMessage("La Presa no hizo daño.");
+             
+             // Actualizar el evento de la arena con el resultado
+             setArenaEvent({
+               type: 'action_effect',
+               actionName: 'Presa',
+               attackerName: attacker.name,
+               defenderName: defender.name,
+               outcome: 'failed'
+             });
         }
 
         // Pasar turno si el juego no ha terminado
@@ -327,10 +405,28 @@ function App() {
         return; // Terminar handleActionInitiate aquí para 'presa'
       } else if (actionName === 'destrozar') {
         logMessage(`${attacker.name} intenta Destrozar la armadura de ${defender.name}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Destrozar',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
 
         // Comprobar si el defensor tiene armadura
         if (defender.stats.currentPA <= 0) {
             logMessage(`¡La armadura de ${defender.name} ya está rota! No se puede usar Destrozar.`);
+            
+            // Actualizar el evento de la arena con el resultado
+            setArenaEvent({
+              type: 'action_effect',
+              actionName: 'Destrozar',
+              attackerName: attacker.name,
+              defenderName: defender.name,
+              outcome: 'no_armor'
+            });
+            
             // No se pasa el turno, permitir elegir otra acción
             return;
         }
@@ -342,6 +438,16 @@ function App() {
         for (let i = 0; i < 3; i++) { // Máximo 3 intentos/éxitos
             const roll = rollD20();
             const isOdd = roll % 2 !== 0;
+            
+            // Actualizar el evento de la arena con la tirada
+            setArenaEvent({
+              type: 'dice_roll',
+              rollerName: attacker.name,
+              rollValue: roll,
+              isOdd: isOdd,
+              actionName: 'Destrozar',
+              stage: i + 1
+            });
 
             if (isOdd) {
                 successfulHits++;
@@ -363,8 +469,27 @@ function App() {
              logMessage(`Daño total de Destrozar: ${totalDamageAccumulated} directo a PA.`);
              // Usamos 'directPA'. La función applyDamage maneja la rotura y overflow a PV.
              gameOver = applyDamage(defender.id, totalDamageAccumulated, 'directPA');
+             
+             // Actualizar el evento de la arena con el resultado
+             setArenaEvent({
+               type: 'action_effect',
+               actionName: 'Destrozar',
+               attackerName: attacker.name,
+               defenderName: defender.name,
+               damage: totalDamageAccumulated,
+               hits: successfulHits
+             });
         } else {
              logMessage("Destrozar no hizo daño.");
+             
+             // Actualizar el evento de la arena con el resultado
+             setArenaEvent({
+               type: 'action_effect',
+               actionName: 'Destrozar',
+               attackerName: attacker.name,
+               defenderName: defender.name,
+               outcome: 'failed'
+             });
         }
 
         // Pasar turno si el juego no ha terminado
@@ -384,6 +509,15 @@ function App() {
         // if (requiredConcentration > 0 && attackerData.concentrationLevel < requiredConcentration) { ... return; }
 
         logMessage(`${attacker.name} inicia Acción: Lanzar Objeto!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Lanzar Objeto',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
+        
         // Resetear concentración si la acción la gastara
         // if (requiredConcentration > 0) { setAttackerData... concentrationLevel: 0 ... }
 
@@ -399,6 +533,15 @@ function App() {
       } else if (actionName === 'embestir') {
         // Verificar/gastar concentración si fuera necesario en el futuro
         logMessage(`${attacker.name} inicia Acción: Embestir!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Embestir',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
+        
         setActionState({
             active: true,
             type: 'Embestir', // Tipo de acción para handleDefenseSelection
@@ -410,6 +553,15 @@ function App() {
       } else if (actionName === 'cargar') {
         // Verificar/gastar concentración si fuera necesario en el futuro
         logMessage(`${attacker.name} inicia Acción: Cargar!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Cargar',
+          attackerName: attacker.name,
+          defenderName: defender.name
+        });
+        
         setActionState({
             active: true,
             type: 'Cargar', // Tipo de acción para handleDefenseSelection
@@ -452,8 +604,11 @@ function App() {
 
     let defenseSuccessful = false;
     let damageToDefender = 0;
-    let damageToAttacker = 0;
-    let damageToDefenderPA = 0; // Daño específico a PA en bloqueo exitoso
+    let damageToDefenderPA = 0; // Para daño específico a PA (bloqueos)
+    let damageToAttacker = 0;   // Para daño de contraataque
+    let gameOver = false; // Asegurarse de que se inicializa aquí
+
+    console.log(`[DEBUG] Iniciando resolución para ${actionState.type} con defensa ${defenseType}. Roll: ${roll}`); // LOG 1
 
     if (actionState.type === 'Golpe') {
       const golpeDamage = attacker.actions.golpe; // Daño base de Golpe del atacante
@@ -461,16 +616,42 @@ function App() {
       if (defenseType === 'esquivar') {
         const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
         logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           logMessage("¡Esquivada exitosa!");
+          console.log("[DEBUG] Esquiva de Golpe: ÉXITO"); // LOG 2a
         } else {
           logMessage("¡Esquivada fallida!");
           damageToDefender = golpeDamage;
+          console.log(`[DEBUG] Esquiva de Golpe: FALLO. damageToDefender = ${damageToDefender}`); // LOG 2b
         }
       } else if (defenseType === 'bloquear') {
         const [minRoll, maxRoll] = defender.defenseRanges.bloquear;
         logMessage(`${defender.name} tira 1d20 para Bloquear (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           damageToDefenderPA = 10; // Daño de bloqueo para Golpe es 10 a PA
@@ -482,6 +663,18 @@ function App() {
       } else if (defenseType === 'contraatacar') {
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Contraatacar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           // Calcular daño de contraataque: 1/2 del daño de GOLPE del DEFENSOR
@@ -501,6 +694,18 @@ function App() {
         // Aplicar bono +2 a Esquivar (restando 2 al mínimo necesario)
         minRoll = Math.max(1, minRoll - 2); // No bajar de 1
         logMessage(`${defender.name} tira 1d20 para Esquivar contra Lanzar Objeto (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           logMessage("¡Esquivada exitosa!");
@@ -513,6 +718,18 @@ function App() {
         // Aplicar penalizador -2 a Bloquear (sumando 2 al mínimo necesario)
         minRoll = Math.min(21, minRoll + 2); // No superar 21 (imposible de sacar)
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Lanzar Objeto (-2 Penalizador => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           damageToDefenderPA = 20; // Daño específico de bloqueo para Lanzar Objeto
@@ -526,6 +743,18 @@ function App() {
         // Sin modificador para Contraatacar según las reglas
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Contraatacar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           // Daño = 1/2 del daño de Lanzar Objeto del DEFENSOR
@@ -544,6 +773,18 @@ function App() {
         // Sin modificador para Esquivar
         const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
         logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           logMessage("¡Esquivada exitosa!");
@@ -556,6 +797,18 @@ function App() {
         let [minRoll, maxRoll] = defender.defenseRanges.bloquear;
         minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Embestir (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           damageToDefenderPA = 20; // Daño específico de bloqueo para Embestir
@@ -568,6 +821,18 @@ function App() {
         // Sin modificador para Contraatacar
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Contraatacar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           // Daño = 1/2 del daño de Embestir del DEFENSOR
@@ -587,6 +852,18 @@ function App() {
         let [minRoll, maxRoll] = defender.defenseRanges.esquivar;
         minRoll = Math.max(1, minRoll - 2); // Más fácil esquivar
         logMessage(`${defender.name} tira 1d20 para Esquivar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Esquivar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           logMessage("¡Esquivada exitosa!");
@@ -599,6 +876,18 @@ function App() {
         let [minRoll, maxRoll] = defender.defenseRanges.bloquear;
         minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Bloquear',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           damageToDefenderPA = 20; // Daño específico de bloqueo para Cargar
@@ -612,6 +901,18 @@ function App() {
         let [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         minRoll = Math.max(1, minRoll - 2); // Más fácil contraatacar
         logMessage(`${defender.name} tira 1d20 para Contraatacar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        
+        // Actualizar el evento de la arena
+        setArenaEvent({
+          type: 'dice_roll',
+          rollerName: defender.name,
+          rollValue: roll,
+          targetMin: minRoll,
+          targetMax: maxRoll,
+          defenseType: 'Contraatacar',
+          outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
+        });
+        
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
           // Daño = 1/2 del daño de Cargar del DEFENSOR
@@ -630,59 +931,98 @@ function App() {
 
     // (Después de determinar defenseSuccessful, damageToAttacker, damageToDefender, damageToDefenderPA)
 
-    let gameOver = false;
+    console.log(`[DEBUG] Antes de aplicar daño. damageToAttacker: ${damageToAttacker}, damageToDefender: ${damageToDefender}, damageToDefenderPA: ${damageToDefenderPA}`); // LOG 3
 
     // Aplicar daño al Atacante (si hubo contraataque)
     if (damageToAttacker > 0) {
+      console.log("[DEBUG] Aplicando daño al ATACANTE..."); // LOG 4
       gameOver = applyDamage(attackerId, damageToAttacker);
+      setArenaEvent({
+        type: 'action_effect',
+        actionName: 'Contraataque',
+        damage: damageToAttacker,
+        targetName: attacker.name
+      });
+      console.log(`[DEBUG] Después de aplicar daño al ATACANTE. gameOver = ${gameOver}`); // LOG 5
     }
 
     // Aplicar daño al Defensor (si la defensa falló o fue bloqueo exitoso)
     // ¡Solo si el juego no terminó ya por el contraataque!
     if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) {
-        if (damageToDefender > 0) { // Defensa fallida
-             gameOver = applyDamage(defenderId, damageToDefender);
-        } else { // Bloqueo exitoso
-            // Necesitamos una versión de applyDamage que solo afecte PA
-            // O modificamos applyDamage para recibir el tipo de daño
-            // Solución simple por ahora: aplicamos daño normal de 0 y luego ajustamos PA
-             logMessage(`¡Bloqueo exitoso! ${defender.name} recibe ${damageToDefenderPA} daño a PA.`);
-             let currentDefenderPA = defender.stats.currentPA;
-             let finalPA = currentDefenderPA - damageToDefenderPA;
-             let finalPV = defender.stats.currentPV; // PV no cambia por bloqueo exitoso
-             if (finalPA < 0) {
-                 if (currentDefenderPA > 0) logMessage("¡Armadura rota por el bloqueo!");
-                 // ¡Importante! Según reglas, daño excedente de bloqueo va a PV
-                 let overflowDamage = -finalPA;
-                 finalPA = 0;
-                 finalPV = defender.stats.currentPV - overflowDamage;
-                 if (finalPV <= 0) {
-                     finalPV = 0;
-                     gameOver = true;
-                     logMessage(`¡¡¡ ${defender.name} ha sido derrotado por daño de bloqueo !!!`);
-                 }
-             }
-             setDefenderData(prevData => ({
-                 ...prevData,
-                 stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
-             }));
-              logMessage(`${defender.name} - PV: ${finalPV}/${defender.stats.pv_max}, PA: ${finalPA}/${defender.stats.pa_max}`);
-             if (gameOver) {
-                 setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
-             }
+      console.log("[DEBUG] Aplicando daño al DEFENSOR..."); // LOG 6
+      if (damageToDefender > 0) { // Defensa fallida (Daño normal)
+        console.log("[DEBUG] Defensa fallida - Llamando applyDamage..."); // LOG 7a
+        gameOver = applyDamage(defenderId, damageToDefender);
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: actionState.type,
+          damage: damageToDefender,
+          targetName: defender.name
+        });
+      } else { // Bloqueo exitoso (Daño solo a PA)
+        console.log("[DEBUG] Bloqueo exitoso - Aplicando daño a PA..."); // LOG 7b
+        // Necesitamos una versión de applyDamage que solo afecte PA
+        // O modificamos applyDamage para recibir el tipo de daño
+        // Solución simple por ahora: aplicamos daño normal de 0 y luego ajustamos PA
+        logMessage(`¡Bloqueo exitoso! ${defender.name} recibe ${damageToDefenderPA} daño a PA.`);
+        let currentDefenderPA = defender.stats.currentPA;
+        let finalPA = currentDefenderPA - damageToDefenderPA;
+        let finalPV = defender.stats.currentPV; // PV no cambia por bloqueo exitoso
+        if (finalPA < 0) {
+          if (currentDefenderPA > 0) logMessage("¡Armadura rota por el bloqueo!");
+          // ¡Importante! Según reglas, daño excedente de bloqueo va a PV
+          let overflowDamage = -finalPA;
+          finalPA = 0;
+          finalPV = defender.stats.currentPV - overflowDamage;
+          if (finalPV <= 0) {
+            finalPV = 0;
+            gameOver = true;
+            logMessage(`¡¡¡ ${defender.name} ha sido derrotado por daño de bloqueo !!!`);
+          }
         }
+        setDefenderData(prevData => ({
+          ...prevData,
+          stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
+        }));
+        logMessage(`${defender.name} - PV: ${finalPV}/${defender.stats.pv_max}, PA: ${finalPA}/${defender.stats.pa_max}`);
+        
+        // Actualizar el evento de la arena para mostrar el daño del bloqueo
+        setArenaEvent({
+          type: 'action_effect',
+          actionName: 'Bloqueo',
+          damage: damageToDefenderPA,
+          targetName: defender.name
+        });
+        
+        if (gameOver) {
+          setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
+        }
+      }
+      console.log(`[DEBUG] Después de aplicar daño al DEFENSOR. gameOver = ${gameOver}`); // LOG 8
+    } else {
+      console.log("[DEBUG] No se aplica daño al defensor (Esquiva/Contraataque exitoso O juego ya terminado)."); // LOG 9
     }
 
     // --- Finalizar Acción y Cambiar Turno (si no acabó el juego) ---
-    if (!gameOver) {
-        // (Resetear concentración si aplica, como vimos antes)
-        // ... reset concentration logic ...
+    console.log(`[DEBUG] Antes de finalizar acción/cambiar turno. gameOver = ${gameOver}`); // LOG 10
 
-        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-        setCurrentPlayerId(nextPlayerId);
-        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
-        logMessage(`Turno de ${nextPlayerName}`);
+    if (!gameOver) {
+      console.log("[DEBUG] Juego NO terminado. Reseteando estado y cambiando turno..."); // LOG 11
+      // (Resetear concentración si aplica...)
+
+      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+      setCurrentPlayerId(nextPlayerId);
+      const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+      logMessage(`Turno de ${nextPlayerName}`);
+      // Quizás limpiar el arenaEvent aquí o con un timer?
+      // setArenaEvent(null); // Opcional: limpiar evento inmediatamente
+    } else {
+      console.log("[DEBUG] Juego TERMINADO. No se cambia turno."); // LOG 12
+      // Aquí podrías asegurarte de que el UI refleje el game over si no lo hace ya
+      if (actionState.stage !== 'game_over') {
+        setActionState(prev => ({ ...prev, stage: 'game_over' }));
+      }
     }
   };
 
@@ -706,7 +1046,7 @@ function App() {
             handleDefenseSelection={handleDefenseSelection}
           />
           <div className="center-column">
-            <GameBoard />
+            <ArenaDisplay event={arenaEvent} />
             <GameLog log={gameLog} />
           </div>
           <PlayerArea 

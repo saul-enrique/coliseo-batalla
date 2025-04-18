@@ -1,0 +1,97 @@
+.arena-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+  text-align: center;
+  min-height: 200px;
+}
+
+.arena-message {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.arena-event {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.event-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.dice-roll {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 10px 0;
+}
+
+.roll-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.roll-target {
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.event-outcome {
+  font-size: 1.3rem;
+  font-weight: bold;
+  padding: 5px 15px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.event-outcome.success {
+  color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.2);
+}
+
+.event-outcome.failure {
+  color: #f44336;
+  background-color: rgba(244, 67, 54, 0.2);
+}
+
+.event-outcome.blocked {
+  color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.2);
+}
+
+.event-outcome.countered {
+  color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.2);
+}
+
+.effect-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.damage-info {
+  font-size: 1.2rem;
+  color: #f44336;
+}
+
+.target-info {
+  font-size: 1rem;
+  color: #ccc;
+} 
