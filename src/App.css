@@ -1,240 +1,220 @@
 /* Importar fuentes temáticas */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
 
-/* Asegurar que la aplicación ocupe todo el espacio disponible */
-html, body, #root {
-  height: 100%;
-  width: 100%; /* Asegurar ancho completo */
+/* Reset básico */
+* {
   margin: 0;
   padding: 0;
-  box-sizing: border-box; /* Buena práctica */
+  box-sizing: border-box;
 }
 
-*, *:before, *:after {
-  box-sizing: inherit; /* Heredar box-sizing */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-/* Estilo contenedor principal */
+body {
+  font-family: 'Roboto', sans-serif;
+  background: radial-gradient(circle at center, #0a0a2a, #000000);
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .game-container {
   display: flex;
-  flex-direction: row; /* ¡Cambio clave: fila en lugar de columna! */
-  justify-content: space-between; /* Distribuye espacio entre columnas */
-  align-items: stretch; /* Estira los hijos para igualar altura */
-  min-height: 100vh; /* Ocupar toda la altura visible */
-  width: 100%; /* Ocupar todo el ancho */
-  padding: 15px; /* Añadir un poco de padding general */
-  gap: 15px; /* Espacio entre las 3 columnas principales */
-  box-sizing: border-box; /* Asegurar que el padding no añada ancho extra */
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: stretch;
+  min-height: 100vh;
+  padding: 20px;
+  gap: 20px;
+  width: 100%;
 }
 
-/* Estilo para las áreas de los jugadores */
 .player-area {
-  border: 1px solid rgba(255, 215, 0, 0.6); /* Borde dorado semitransparente */
-  padding: 15px;
-  background-color: rgba(20, 20, 40, 0.7); /* Fondo azul oscuro semitransparente */
-  border-radius: 8px; /* Esquinas redondeadas */
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); /* Sutil brillo dorado */
-  flex: 1 1 30%; /* flex-grow: 1, flex-shrink: 1, flex-basis: 30% */
-  max-width: 350px; /* Un ancho máximo opcional */
-  overflow-y: auto; /* Scroll si el contenido es muy largo */
+  flex: 1;
+  max-width: 30%;
+  border: 2px solid #d4af37;
+  border-radius: 10px;
+  padding: 20px;
+  background-color: rgba(10, 10, 40, 0.8);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  backdrop-filter: blur(3px);
-}
-
-/* Columna Central */
-.center-column {
-  display: flex;
-  flex-direction: column; /* Columna vertical para Tablero y Log */
-  flex: 2 1 40%; /* flex-grow: 2 (más importante), flex-shrink: 1, flex-basis: 40% */
-  gap: 15px; /* Espacio entre Tablero y Log */
-  align-items: stretch; /* Estirar hijos */
-}
-
-/* Estilo para el tablero de juego */
-.game-board {
-  border: 1px solid rgba(192, 192, 192, 0.6); /* Borde plateado semitransparente */
-  padding: 15px;
-  background-color: rgba(50, 50, 70, 0.6); /* Fondo púrpura/gris oscuro semitransparente */
-  border-radius: 8px;
-  box-shadow: 0 0 15px rgba(192, 192, 192, 0.2); /* Sutil brillo plateado */
-  flex-grow: 3; /* Que el tablero ocupe más espacio que el log */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  backdrop-filter: blur(3px);
-}
-
-/* Estilos para los placeholders internos (ahora más sutiles) */
-.player-area > div:not(.actions-section):not(.defense-buttons):not(.waiting-message),
-.game-board > div {
-  border: none;
-  padding: 5px 8px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  font-size: 0.95em;
-}
-
-/* Hacer que los stats resalten un poco */
-.player-area > div:nth-of-type(4),
-.player-area > div:nth-of-type(5),
-.player-area > div:nth-of-type(6) {
-  font-weight: bold;
-  color: #fff;
-  background-color: rgba(0, 0, 0, 0.3);
-}
-
-/* Quitar márgenes por defecto del body para que el contenedor ocupe bien el espacio */
-body {
-  margin: 0;
-  font-family: 'Roboto', sans-serif;
-  background-color: #0f0f1f;
-  background-image: radial-gradient(circle, #2a2a4a, #0f0f1f 70%);
-  color: #e0e0e0;
-}
-
-/* Estilos para los encabezados */
-h2, h4 {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  color: gold;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-}
-
-/* Estilos para los botones */
-.action-button, .power-button, .defense-buttons button {
-  padding: 8px 15px;
-  border: 1px solid gold;
-  border-radius: 20px;
-  background: linear-gradient(to bottom, #1a1a3a, #0a0a1a);
-  color: #e0e0e0;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
-  font-weight: bold;
-  text-transform: uppercase;
-  font-size: 0.8em;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-}
-
-.action-button:hover, .power-button:hover, .defense-buttons button:hover {
-  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
-  color: gold;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-  transform: translateY(-2px);
-}
-
-.defense-buttons button {
-  border-color: silver;
-  background: linear-gradient(to bottom, #303040, #181820);
-}
-
-.defense-buttons button:hover {
-   color: silver;
-   box-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
-}
-
-/* Estilos para el registro de combate */
-.game-log {
-  border: 1px solid rgba(255, 215, 0, 0.6);
-  padding: 10px 15px;
-  background-color: rgba(10, 10, 20, 0.8);
-  flex-grow: 1; /* Que el log ocupe menos espacio */
-  max-height: 200px;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
   overflow-y: auto;
-  border-radius: 5px;
-  backdrop-filter: blur(3px);
 }
 
-.game-log h4 {
-  margin-top: 0;
-  border-bottom: 1px solid gold;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  font-size: 1.1em;
-}
-
-.log-messages {
+.center-column {
+  flex: 2;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 40%;
+}
+
+.game-board {
+  border: 2px solid #c0c0c0;
+  border-radius: 10px;
+  padding: 20px;
+  background-color: rgba(40, 40, 60, 0.8);
+  min-height: 60%;
+  box-shadow: 0 0 15px rgba(192, 192, 192, 0.3);
+}
+
+.game-log {
+  border: 2px solid #d4af37;
+  border-radius: 10px;
+  padding: 15px;
+  background-color: rgba(10, 10, 30, 0.9);
+  max-height: 40%;
+  overflow-y: auto;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.game-log h3 {
+  color: #d4af37;
+  margin-bottom: 10px;
+  font-family: 'Cinzel', serif;
+  text-align: center;
+  border-bottom: 1px solid #d4af37;
+  padding-bottom: 5px;
 }
 
 .log-message {
-  padding: 3px 0;
-  border-bottom: 1px solid rgba(255, 215, 0, 0.1);
-  font-size: 0.85em;
-  color: #c0c0c0;
+  margin-bottom: 8px;
+  padding: 5px;
+  border-left: 2px solid #d4af37;
+  background-color: rgba(20, 20, 40, 0.5);
+  font-size: 0.9em;
 }
 
-.log-message:last-child {
-  border-bottom: none;
-}
-
-/* Estilo para mensaje de espera */
-.waiting-message {
-  font-style: italic;
-  color: #a0a0a0;
-  padding: 15px;
-  text-align: center;
+.action-button, .power-button, .defense-button {
+  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
+  color: #d4af37;
+  border: 1px solid #d4af37;
+  border-radius: 5px;
+  padding: 8px 15px;
+  margin: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
   font-family: 'Cinzel', serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.9em;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.action-button:hover, .power-button:hover, .defense-button:hover {
+  background: linear-gradient(to bottom, #3a3a7a, #2a2a5a);
+  color: white;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+  transform: translateY(-2px);
+}
+
+.defense-button {
+  background: linear-gradient(to bottom, #3a2a5a, #2a1a3a);
+  border-color: #a080d0;
+  color: #a080d0;
+}
+
+.defense-button:hover {
+  background: linear-gradient(to bottom, #4a3a7a, #3a2a5a);
+  box-shadow: 0 0 10px rgba(160, 128, 208, 0.7);
+}
+
+.waiting-message {
+  color: #a080d0;
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+  background-color: rgba(40, 30, 60, 0.5);
+  border-radius: 5px;
+  margin: 10px 0;
+}
+
+/* Estilos para la pantalla de Game Over */
+.game-over-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  text-align: center;
+  background: radial-gradient(circle at center, #1a0a2a, #000000);
+}
+
+.game-over-screen h2 {
+  color: #ff3333;
+  font-size: 2.5em;
+  margin-bottom: 20px;
+  font-family: 'Cinzel', serif;
+  text-shadow: 0 0 10px rgba(255, 51, 51, 0.7);
+}
+
+.play-again-button {
+  padding: 12px 25px;
+  border: 1px solid gold;
+  border-radius: 25px;
+  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
+  color: gold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  text-transform: uppercase;
   font-size: 1.1em;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  margin-bottom: 20px;
 }
 
-/* --- Media Query para Responsividad --- */
+.play-again-button:hover {
+  background: linear-gradient(to bottom, #3a3a7a, #2a2a5a);
+  color: white;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+  transform: translateY(-2px);
+}
+
+.game-over-screen .game-log {
+  max-height: 300px;
+  width: 80%;
+  max-width: 600px;
+}
+
+/* Media queries para diseño responsive */
 @media (max-width: 900px) {
-
   .game-container {
-    flex-direction: column; /* Volver a apilar en columna */
-    min-height: 100%; /* Asegurar altura mínima en móvil */
-    height: auto; /* Permitir que crezca si es necesario */
-    padding: 10px; /* Reducir padding en pantallas pequeñas */
-    gap: 10px; /* Reducir gap */
+    flex-direction: column;
+    padding: 10px;
   }
-
+  
+  .player-area, .center-column {
+    max-width: 100%;
+    min-height: auto;
+  }
+  
   .player-area {
-    flex: 1 1 auto; /* Resetear flex-basis, permitir que crezcan */
-    max-width: none; /* Eliminar ancho máximo */
-    min-height: 250px; /* Una altura mínima para que no colapsen */
-    /* El overflow-y: auto; sigue siendo útil */
+    min-height: 200px;
   }
-
-  .center-column {
-    flex: 1 1 auto; /* Resetear flex-basis */
-    order: 0; /* Puedes cambiar el orden si quieres, ej: poner log primero con order: -1 */
-  }
-
+  
   .game-board {
-     flex-grow: 1; /* Ajustar crecimiento vertical si es necesario */
-     min-height: 200px; /* Altura mínima para el tablero */
+    min-height: 300px;
   }
-
+  
   .game-log {
-    flex-grow: 1;
-    max-height: 150px; /* Altura máxima más pequeña para el log */
+    max-height: 200px;
   }
-
-  /* Opcional: Ajustar tamaño de fuentes o botones para móvil */
-  h2, h4 {
-    font-size: 1.1em; /* Reducir un poco títulos */
-  }
-  .action-button, .power-button, .defense-buttons button {
-    font-size: 0.75em; /* Botones más pequeños */
-    padding: 6px 10px;
-  }
-  .log-message {
-    font-size: 0.8em;
-  }
-
-}
-
-/* Opcional: Puedes añadir otro breakpoint para pantallas muy pequeñas */
-@media (max-width: 480px) {
-  .game-container {
-     padding: 5px;
-     gap: 5px;
-  }
-   /* Otros ajustes finos para móviles muy pequeños */
 }

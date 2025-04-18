@@ -46,19 +46,42 @@ const initialPlayer1Data = {
   }
 };
 
+// Datos de Shiryu de Dragón como Jugador 2
 const initialPlayer2Data = {
-  id: 'player2_char',
-  name: 'Oponente Genérico',
-  stats: { pv_max: 8000, pa_max: 5000, pc_max: 1000, currentPV: 8000, currentPA: 5000, currentPC: 1000 },
-  defenseRanges: { esquivar: [10, 20], bloquear: [8, 20], contraatacar: [14, 20] },
-  actions: { golpe: 50, llave: 60 },
-  powers: [ { id: 'P201', name: 'Poder Genérico', cost: 120, type: ['R'], damage: 160, description: '...' } ],
-  bonuses: {},
+  id: 'shiryu_v1',
+  name: 'SHIRYU DE DRAGON',
+  stats: {
+    pv_max: 280, pa_max: 300, pc_max: 400,
+    currentPV: 280, currentPA: 300, currentPC: 400,
+  },
+  defenseRanges: {
+    esquivar: [10, 20],
+    bloquear: [6, 20],
+    contraatacar: [14, 20],
+  },
+  actions: {
+    golpe: 60,
+    llave: 60,
+    salto: 70,
+  },
+  powers: [
+    { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
+    { id: 'S002', name: 'Dragón Volador', cost: 50, type: ['R', 'G'], damage: 70 },
+    { id: 'S003', name: 'Rozan Ryuu Hi Shou', cost: 100, type: ['R', 'G'], damage: 100, details: 'Weak Point on Counter' },
+    { id: 'S004', name: 'Cien Dragones de Rozan', cost: 200, type: ['RB', 'G'], damage: 160, effects: '-3 Bloquear' },
+    { id: 'S005', name: 'Último Dragón', cost: 200, type: ['LL'], damage: 200, details: 'Self-dmg 120, 1 use' },
+    { id: 'S006', name: 'Excalibur', cost: 100, type: ['R', 'RArm', 'M'], damage: 100, details: 'Ignore Def Bonus, Destroys Armor on 1-2' },
+  ],
+  bonuses: {
+    pasivos: ['+1 Percep', '+2 Bloq (ESC, ARM)', '+10 Dmg Golpe (ARM)'],
+    activos: ['+2 Ayuda (aliados)', '+2 Int Div', 'Valentía del Dragón', 'Armadura Divina'],
+    flags: ['ESC', 'ARM']
+  },
   statusEffects: [],
   canConcentrate: true,
   concentrationLevel: 0,
   supportRanges: {
-      percepcion: [17, 20],
+      percepcion: [15, 20],
       septimo_sentido: [19, 20],
       puntos_vitales: [17, 20],
       romper: [11, 20],
@@ -86,10 +109,25 @@ function App() {
   // Estado para el registro del juego
   const [gameLog, setGameLog] = useState([]);
   
+  // Función para tirar un dado de 20 caras
+  const rollD20 = () => {
+    return Math.floor(Math.random() * 20) + 1;
+  };
+  
   // Función para añadir mensajes al log
   const logMessage = (message) => {
     console.log(message); // También loguea en consola para debugging
     setGameLog(prevLog => [message, ...prevLog]); // Añade al principio del array
+  };
+  
+  // Función para reiniciar el juego
+  const handlePlayAgain = () => {
+    logMessage("Reiniciando el juego...");
+    setPlayer1Data(initialPlayer1Data);
+    setPlayer2Data(initialPlayer2Data);
+    setCurrentPlayerId(initialPlayer1Data.id); // Reinicia al jugador 1 (Seiya)
+    setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+    setGameLog([]); // Limpia el log
   };
   
   // Función para manejar la iniciación de una acción
@@ -125,24 +163,183 @@ function App() {
     }
   };
 
+  // Función para manejar la selección de defensa
+  const handleDefenseSelection = (defenseType) => {
+    if (!actionState.active || actionState.stage !== 'awaiting_defense') return;
+
+    const attackerId = actionState.attackerId;
+    const defenderId = actionState.defenderId;
+    const attacker = attackerId === player1Data.id ? player1Data : player2Data;
+    const defender = defenderId === player1Data.id ? player1Data : player2Data;
+    const setDefenderData = defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+    const setAttackerData = attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data; // Necesario para Contraatacar
+
+    logMessage(`${defender.name} elige defenderse con: ${defenseType}`);
+    const roll = rollD20(); // Hacemos la tirada aquí para todas las defensas
+
+    let defenseSuccessful = false;
+    let damageToDefender = 0;
+    let damageToAttacker = 0;
+    let damageToDefenderPA = 0; // Daño específico a PA en bloqueo exitoso
+
+    if (actionState.type === 'Golpe') {
+      const golpeDamage = attacker.actions.golpe; // Daño base de Golpe del atacante
+
+      if (defenseType === 'esquivar') {
+        const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
+        logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          logMessage("¡Esquivada fallida!");
+          damageToDefender = golpeDamage;
+        }
+      } else if (defenseType === 'bloquear') {
+        const [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        logMessage(`${defender.name} tira 1d20 para Bloquear (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = 10; // Daño de bloqueo para Golpe es 10 a PA
+          // Eliminamos el log aquí, lo moveremos después de calcular el daño
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = golpeDamage;
+        }
+      } else if (defenseType === 'contraatacar') {
+        const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
+        logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          // Calcular daño de contraataque: 1/2 del daño de GOLPE del DEFENSOR
+          const counterDamage = Math.floor(defender.actions.golpe / 2);
+          damageToAttacker = counterDamage;
+          logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
+        } else {
+          logMessage("¡Contraataque fallido!");
+          damageToDefender = golpeDamage;
+        }
+      }
+    } else {
+      logMessage(`Resolución para acción tipo ${actionState.type} no implementada.`);
+      defenseSuccessful = true; // Asumir éxito para pasar turno
+    }
+
+    // --- Aplicar Daños ---
+    let attackerFinalPV = attacker.stats.currentPV;
+    let attackerFinalPA = attacker.stats.currentPA;
+    let defenderFinalPV = defender.stats.currentPV;
+    let defenderFinalPA = defender.stats.currentPA;
+    let gameOver = false;
+
+    // Aplicar daño al Atacante (si hubo contraataque exitoso)
+    if (damageToAttacker > 0) {
+      let damageToAttackerPa = Math.ceil(damageToAttacker / 2);
+      let damageToAttackerPv = Math.floor(damageToAttacker / 2);
+      let currentAttackerPA = attacker.stats.currentPA;
+      attackerFinalPA = currentAttackerPA - damageToAttackerPa;
+      if (attackerFinalPA < 0) {
+        damageToAttackerPv += (-attackerFinalPA);
+        attackerFinalPA = 0;
+      }
+      attackerFinalPV = attacker.stats.currentPV - damageToAttackerPv;
+      if (attackerFinalPV <= 0) {
+        attackerFinalPV = 0;
+        gameOver = true;
+        logMessage(`¡¡¡ ${attacker.name} ha sido derrotado por el contraataque !!!`);
+      }
+      setAttackerData(prevData => ({ ...prevData, stats: { ...prevData.stats, currentPV: attackerFinalPV, currentPA: attackerFinalPA } }));
+      logMessage(`${attacker.name} - PV: ${attackerFinalPV}/${attacker.stats.pv_max}, PA: ${attackerFinalPA}/${attacker.stats.pa_max}`);
+    }
+
+    // Aplicar daño al Defensor (si la defensa falló o fue bloqueo exitoso)
+    if (damageToDefender > 0 || damageToDefenderPA > 0) {
+      let damageToPv = 0;
+      let damageToPa = 0;
+
+      if (damageToDefender > 0) { // Defensa fallida, daño completo
+        damageToPa = Math.ceil(damageToDefender / 2);
+        damageToPv = Math.floor(damageToDefender / 2);
+      } else { // Bloqueo exitoso, solo daño a PA
+        damageToPa = damageToDefenderPA;
+      }
+
+      let currentDefenderPA = defender.stats.currentPA;
+      defenderFinalPA = currentDefenderPA - damageToPa;
+      if (defenderFinalPA < 0) {
+        if (currentDefenderPA > 0) logMessage("¡Armadura rota!");
+        damageToPv += (-defenderFinalPA); // Daño excedente a PV
+        defenderFinalPA = 0;
+      }
+
+      defenderFinalPV = defender.stats.currentPV - damageToPv;
+      if (defenderFinalPV <= 0) {
+        defenderFinalPV = 0;
+        gameOver = true;
+        logMessage(`¡¡¡ ${defender.name} ha sido derrotado !!!`);
+      }
+      
+      // Mensajes de log mejorados para el bloqueo
+      if (damageToDefenderPA > 0 && damageToDefender === 0) { // Solo si fue un bloqueo exitoso
+        if (currentDefenderPA > 0 && defenderFinalPA >= 0) { // Armadura aguantó
+          logMessage(`¡Bloqueo exitoso! ${defender.name} recibe ${damageToDefenderPA} daño a PA.`);
+        } else if (currentDefenderPA > 0 && defenderFinalPA <= 0) { // Armadura se rompió con el bloqueo
+          logMessage(`¡Bloqueo exitoso, pero la Armadura se rompe! ${defender.name} recibe ${damageToDefenderPA - currentDefenderPA} daño a PV y ${currentDefenderPA} a PA.`);
+        } else { // Armadura ya estaba rota, daño de bloqueo va a PV
+          logMessage(`¡Bloqueo exitoso! Armadura ya rota. ${defender.name} recibe ${damageToDefenderPA} daño a PV.`);
+        }
+      } else if (damageToDefender > 0) { // Si la defensa falló (golpe normal)
+        logMessage(`${defender.name} recibe ${damageToPv} daño a PV y ${damageToPa} daño a PA.`);
+      }
+      
+      setDefenderData(prevData => ({ ...prevData, stats: { ...prevData.stats, currentPV: defenderFinalPV, currentPA: defenderFinalPA } }));
+      logMessage(`${defender.name} - PV: ${defenderFinalPV}/${defender.stats.pv_max}, PA: ${defenderFinalPA}/${defender.stats.pa_max}`);
+    }
+
+    // --- Finalizar Acción y Cambiar Turno (si no acabó el juego) ---
+    if (gameOver) {
+      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
+    } else {
+      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+      setCurrentPlayerId(nextPlayerId);
+      const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+      logMessage(`Turno de ${nextPlayerName}`);
+    }
+  };
+
   return (
-    <div className="game-container">
-      <PlayerArea 
-        characterData={player1Data} 
-        isCurrentPlayer={currentPlayerId === player1Data.id}
-        handleActionInitiate={handleActionInitiate}
-        actionState={actionState}
-      />
-      <div className="center-column">
-        <GameBoard />
-        <GameLog log={gameLog} />
-      </div>
-      <PlayerArea 
-        characterData={player2Data} 
-        isCurrentPlayer={currentPlayerId === player2Data.id}
-        handleActionInitiate={handleActionInitiate}
-        actionState={actionState}
-      />
+    <div className="app-container">
+      {actionState.stage === 'game_over' ? (
+        <div className="game-over-screen">
+          <h2>¡Fin del Combate!</h2>
+          <button onClick={handlePlayAgain} className="play-again-button">
+            Jugar de Nuevo
+          </button>
+          <GameLog log={gameLog} />
+        </div>
+      ) : (
+        <div className="game-container">
+          <PlayerArea 
+            characterData={player1Data} 
+            isCurrentPlayer={currentPlayerId === player1Data.id}
+            handleActionInitiate={handleActionInitiate}
+            actionState={actionState}
+            handleDefenseSelection={handleDefenseSelection}
+          />
+          <div className="center-column">
+            <GameBoard />
+            <GameLog log={gameLog} />
+          </div>
+          <PlayerArea 
+            characterData={player2Data} 
+            isCurrentPlayer={currentPlayerId === player2Data.id}
+            handleActionInitiate={handleActionInitiate}
+            actionState={actionState}
+            handleDefenseSelection={handleDefenseSelection}
+          />
+        </div>
+      )}
     </div>
   )
 }
