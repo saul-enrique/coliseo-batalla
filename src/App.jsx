@@ -67,6 +67,7 @@ const initialPlayer2Data = {
     llave: 60,
     salto: 70,
     embestir: 60,
+    cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
@@ -406,6 +407,17 @@ function App() {
             stage: 'awaiting_defense'
         });
         return; // Terminar handleActionInitiate
+      } else if (actionName === 'cargar') {
+        // Verificar/gastar concentración si fuera necesario en el futuro
+        logMessage(`${attacker.name} inicia Acción: Cargar!`);
+        setActionState({
+            active: true,
+            type: 'Cargar', // Tipo de acción para handleDefenseSelection
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_defense'
+        });
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'poder_ejemplo_1') { // Placeholder para poder
         logMessage(`${attacker.name} intenta usar Poder Ejemplo 1 (lógica no implementada)`);
         // Aquí iría la lógica del poder: restar PC, calcular efecto, etc.
@@ -560,6 +572,50 @@ function App() {
           defenseSuccessful = true;
           // Daño = 1/2 del daño de Embestir del DEFENSOR
           const counterDamage = Math.floor(defender.actions.embestir / 2);
+          damageToAttacker = counterDamage;
+          logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
+        } else {
+          logMessage("¡Contraataque fallido!");
+          damageToDefender = baseDamage;
+        }
+      }
+    } else if (actionState.type === 'Cargar') {
+      const baseDamage = attacker.actions.cargar; // Daño base de Cargar del atacante (80)
+
+      if (defenseType === 'esquivar') {
+        // Aplicar bono +2 a Esquivar
+        let [minRoll, maxRoll] = defender.defenseRanges.esquivar;
+        minRoll = Math.max(1, minRoll - 2); // Más fácil esquivar
+        logMessage(`${defender.name} tira 1d20 para Esquivar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          logMessage("¡Esquivada exitosa!");
+        } else {
+          logMessage("¡Esquivada fallida!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'bloquear') {
+        // Aplicar bono +2 a Bloquear
+        let [minRoll, maxRoll] = defender.defenseRanges.bloquear;
+        minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
+        logMessage(`${defender.name} tira 1d20 para Bloquear contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          damageToDefenderPA = 20; // Daño específico de bloqueo para Cargar
+          logMessage(`¡Bloqueo exitoso! Recibe ${damageToDefenderPA} daño sólo a Armadura.`);
+        } else {
+          logMessage("¡Bloqueo fallido!");
+          damageToDefender = baseDamage;
+        }
+      } else if (defenseType === 'contraatacar') {
+        // Aplicar bono +2 a Contraatacar
+        let [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
+        minRoll = Math.max(1, minRoll - 2); // Más fácil contraatacar
+        logMessage(`${defender.name} tira 1d20 para Contraatacar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
+        if (roll >= minRoll && roll <= maxRoll) {
+          defenseSuccessful = true;
+          // Daño = 1/2 del daño de Cargar del DEFENSOR
+          const counterDamage = Math.floor(defender.actions.cargar / 2);
           damageToAttacker = counterDamage;
           logMessage(`¡Contraataque exitoso! ${attacker.name} recibe ${damageToAttacker} de daño.`);
         } else {
