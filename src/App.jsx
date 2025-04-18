@@ -223,6 +223,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Golpe',
           attackerName: attacker.name,
@@ -233,6 +234,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Llave',
           attackerName: attacker.name,
@@ -260,6 +262,7 @@ function App() {
           
           // Actualizar el evento de la arena con la tirada
           setArenaEvent({
+            id: Date.now(),
             type: 'dice_roll',
             rollerName: attacker.name,
             rollValue: attackerRoll,
@@ -300,6 +303,7 @@ function App() {
           const winner = winnerId === attacker.id ? attacker : defender;
           const loser = loserId === attacker.id ? attacker : defender;
           setArenaEvent({
+            id: Date.now(),
             type: 'action_effect',
             actionName: 'Llave',
             winnerName: winner.name,
@@ -325,6 +329,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Presa',
           attackerName: attacker.name,
@@ -341,6 +346,7 @@ function App() {
             
             // Actualizar el evento de la arena con la tirada
             setArenaEvent({
+              id: Date.now(),
               type: 'dice_roll',
               rollerName: attacker.name,
               rollValue: roll,
@@ -371,6 +377,7 @@ function App() {
              
              // Actualizar el evento de la arena con el resultado
              setArenaEvent({
+               id: Date.now(),
                type: 'action_effect',
                actionName: 'Presa',
                attackerName: attacker.name,
@@ -383,6 +390,7 @@ function App() {
              
              // Actualizar el evento de la arena con el resultado
              setArenaEvent({
+               id: Date.now(),
                type: 'action_effect',
                actionName: 'Presa',
                attackerName: attacker.name,
@@ -408,6 +416,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Destrozar',
           attackerName: attacker.name,
@@ -420,6 +429,7 @@ function App() {
             
             // Actualizar el evento de la arena con el resultado
             setArenaEvent({
+              id: Date.now(),
               type: 'action_effect',
               actionName: 'Destrozar',
               attackerName: attacker.name,
@@ -441,6 +451,7 @@ function App() {
             
             // Actualizar el evento de la arena con la tirada
             setArenaEvent({
+              id: Date.now(),
               type: 'dice_roll',
               rollerName: attacker.name,
               rollValue: roll,
@@ -472,6 +483,7 @@ function App() {
              
              // Actualizar el evento de la arena con el resultado
              setArenaEvent({
+               id: Date.now(),
                type: 'action_effect',
                actionName: 'Destrozar',
                attackerName: attacker.name,
@@ -484,6 +496,7 @@ function App() {
              
              // Actualizar el evento de la arena con el resultado
              setArenaEvent({
+               id: Date.now(),
                type: 'action_effect',
                actionName: 'Destrozar',
                attackerName: attacker.name,
@@ -512,6 +525,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Lanzar Objeto',
           attackerName: attacker.name,
@@ -536,6 +550,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Embestir',
           attackerName: attacker.name,
@@ -556,6 +571,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Cargar',
           attackerName: attacker.name,
@@ -619,6 +635,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -643,6 +660,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -666,6 +684,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -697,6 +716,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -721,6 +741,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -746,6 +767,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -776,6 +798,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -800,6 +823,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -824,6 +848,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -855,6 +880,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -879,6 +905,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -904,6 +931,7 @@ function App() {
         
         // Actualizar el evento de la arena
         setArenaEvent({
+          id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
           rollValue: roll,
@@ -938,6 +966,7 @@ function App() {
       console.log("[DEBUG] Aplicando daño al ATACANTE..."); // LOG 4
       gameOver = applyDamage(attackerId, damageToAttacker);
       setArenaEvent({
+        id: Date.now(),
         type: 'action_effect',
         actionName: 'Contraataque',
         damage: damageToAttacker,
@@ -954,6 +983,7 @@ function App() {
         console.log("[DEBUG] Defensa fallida - Llamando applyDamage..."); // LOG 7a
         gameOver = applyDamage(defenderId, damageToDefender);
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: actionState.type,
           damage: damageToDefender,
@@ -988,6 +1018,7 @@ function App() {
         
         // Actualizar el evento de la arena para mostrar el daño del bloqueo
         setArenaEvent({
+          id: Date.now(),
           type: 'action_effect',
           actionName: 'Bloqueo',
           damage: damageToDefenderPA,

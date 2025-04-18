@@ -15,7 +15,7 @@ function ArenaDisplay({ event }) {
     case 'dice_roll':
       return (
         <div className="arena-display">
-          <div className="arena-event">
+          <div className="arena-event" key={event.id}>
             <div className="event-header">{event.rollerName} intenta {event.defenseType}</div>
             <div className="dice-roll">
               <div className="roll-value">Tirada: {event.rollValue}</div>
@@ -34,7 +34,7 @@ function ArenaDisplay({ event }) {
     case 'action_effect':
       return (
         <div className="arena-display">
-          <div className="arena-event">
+          <div className="arena-event" key={event.id}>
             <div className="event-header">{event.actionName}</div>
             <div className="effect-details">
               {event.damage > 0 && <div className="damage-info">Daño: {event.damage}</div>}
