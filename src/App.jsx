@@ -1204,7 +1204,7 @@ function App() {
         setArenaEvent(diceRollEvent);
         
         // Pequeña pausa opcional para ver la tirada
-        await delay(500);
+        await delay(750);
         
         if (roll >= minRoll && roll <= maxRoll) {
           hitBlocked = true;
@@ -1238,7 +1238,7 @@ function App() {
         setArenaEvent(diceRollEvent);
         
         // Pequeña pausa opcional para ver la tirada
-        await delay(500);
+        await delay(750);
       }
 
       // Aplicar daño de este golpe
@@ -1268,7 +1268,7 @@ function App() {
       });
       
       // Pausa para leer el resultado
-      await delay(1500);
+      await delay(2000);
 
       // Decidir siguiente paso
       if (!currentGameOver && hitNumber < totalHits) {

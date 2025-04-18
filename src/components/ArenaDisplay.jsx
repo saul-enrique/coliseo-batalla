@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './ArenaDisplay.css';
 
 // Constantes para la animación
@@ -7,20 +7,26 @@ const CYCLE_INTERVAL = 100; // Intervalo entre cambios de número en ms
 
 const ArenaDisplay = ({ event }) => {
   // Estado para el número que se muestra durante la animación
-  const [displayedRoll, setDisplayedRoll] = useState('...');
+  const [displayedRoll, setDisplayedRoll] = useState(null);
   // Estado para controlar cuándo mostrar el resultado
   const [showOutcome, setShowOutcome] = useState(false);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const highlightTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Si no hay evento o no es una tirada de dados, no hacemos nada
     if (!event || event.type !== 'dice_roll') {
-      setDisplayedRoll('...');
+      setDisplayedRoll(null);
       setShowOutcome(false);
+      setIsHighlighting(false);
+      clearTimeout(highlightTimeoutRef.current);
       return;
     }
 
-    // Reiniciamos el estado de showOutcome para cada nueva tirada
+    // Resetear estados al inicio de una nueva tirada
     setShowOutcome(false);
+    setIsHighlighting(false);
+    clearTimeout(highlightTimeoutRef.current);
     
     // Iniciamos la animación de números ciclantes
     const startTime = Date.now();
@@ -37,11 +43,34 @@ const ArenaDisplay = ({ event }) => {
         clearInterval(intervalId);
         setDisplayedRoll(event.rollValue);
         setShowOutcome(true);
+        setIsHighlighting(true);
+
+        // Programar DESACTIVACIÓN del resaltado
+        highlightTimeoutRef.current = setTimeout(() => {
+          setIsHighlighting(false);
+        }, 1000);
       }
     }, CYCLE_INTERVAL);
 
+    // Timeout para FINALIZAR el ciclado
+    const endCycleTimeoutId = setTimeout(() => {
+      clearInterval(intervalId);
+      setDisplayedRoll(event.rollValue);
+      setShowOutcome(true);
+      setIsHighlighting(true);
+
+      // Programar DESACTIVACIÓN del resaltado
+      highlightTimeoutRef.current = setTimeout(() => {
+        setIsHighlighting(false);
+      }, 1000);
+    }, ANIMATION_DURATION);
+
     // Limpieza del intervalo cuando el componente se desmonte o cambie el evento
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(endCycleTimeoutId);
+      clearTimeout(highlightTimeoutRef.current);
+    };
   }, [event]);
 
   // Si no hay evento, mostramos un mensaje por defecto
@@ -56,57 +85,62 @@ const ArenaDisplay = ({ event }) => {
   // Renderizamos el evento según su tipo
   return (
     <div className="arena-display">
-      {event.type === 'dice_roll' && (
-        <div className="arena-event">
-          <div className="event-header">
-            {event.rollerName} tira 1d20 para {event.defenseType || event.actionName}
-          </div>
-          <div className="dice-roll">
-            <div className="roll-value">{displayedRoll}</div>
-            <div className="roll-target">
-              {event.targetMin && event.targetMax && 
-                `(Necesita ${event.targetMin}-${event.targetMax})`}
-            </div>
-          </div>
-          {/* El outcome solo se muestra si showOutcome es true */}
-          {showOutcome && (
-            <div className={`event-outcome ${event.outcome}`}>
-              {event.outcome === 'success' && '¡Éxito!'}
-              {event.outcome === 'failure' && '¡Fallo!'}
-              {event.outcome === 'blocked' && '¡Bloqueado!'}
-              {event.outcome === 'countered' && '¡Contraatacado!'}
+      {event && (
+        <div className={`arena-event ${event.type}`}>
+          {event.type === 'dice_roll' && (
+            <div className="dice-roll-container">
+              <div className="dice-roll-info">
+                <div className="roller-name">{event.rollerName}</div>
+                <div className={`roll-value ${isHighlighting ? 'final-roll-highlight' : ''}`}>
+                  Tirada: {displayedRoll}
+                </div>
+                {showOutcome && event.targetMin && event.targetMax && (
+                  <div className="roll-target">
+                    Necesita {event.targetMin}-{event.targetMax}
+                  </div>
+                )}
+              </div>
+              {showOutcome && (
+                <div className={`roll-outcome ${event.outcome}`}>
+                  {event.outcome === 'success' && '¡Éxito!'}
+                  {event.outcome === 'failure' && '¡Fallo!'}
+                  {event.outcome === 'blocked' && '¡Bloqueado!'}
+                  {event.outcome === 'countered' && '¡Contraatacado!'}
+                  {event.outcome === 'invalid' && '¡Defensa Inválida!'}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
-      
-      {event.type === 'action_effect' && (
-        <div className="arena-event">
-          <div className="event-header">
-            {event.actionName}
-          </div>
-          <div className="effect-details">
-            {event.damage && (
-              <div className="damage-info">
-                {event.targetName} recibe {event.damage} de daño
+          
+          {event.type === 'action_effect' && (
+            <div className="arena-event">
+              <div className="event-header">
+                {event.actionName}
               </div>
-            )}
-            {event.winnerName && (
-              <div className="target-info">
-                {event.winnerName} gana la {event.actionName.toLowerCase()}
+              <div className="effect-details">
+                {event.damage && (
+                  <div className="damage-info">
+                    {event.targetName} recibe {event.damage} de daño
+                  </div>
+                )}
+                {event.winnerName && (
+                  <div className="target-info">
+                    {event.winnerName} gana la {event.actionName.toLowerCase()}
+                  </div>
+                )}
+                {event.successfulRolls && event.successfulRolls.length > 0 && (
+                  <div className="roll-details">
+                    Tiradas exitosas: {event.successfulRolls.join(', ')}
+                  </div>
+                )}
+                {event.message && (
+                  <div className="action-message">
+                    {event.message}
+                  </div>
+                )}
               </div>
-            )}
-            {event.successfulRolls && event.successfulRolls.length > 0 && (
-              <div className="roll-details">
-                Tiradas exitosas: {event.successfulRolls.join(', ')}
-              </div>
-            )}
-            {event.message && (
-              <div className="action-message">
-                {event.message}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
