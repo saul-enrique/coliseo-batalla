@@ -626,6 +626,9 @@ function App() {
 
     console.log(`[DEBUG] Iniciando resolución para ${actionState.type} con defensa ${defenseType}. Roll: ${roll}`); // LOG 1
 
+    // Variable para almacenar el evento de tirada de dados
+    let diceRollEvent = null;
+
     if (actionState.type === 'Golpe') {
       const golpeDamage = attacker.actions.golpe; // Daño base de Golpe del atacante
 
@@ -633,8 +636,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
         logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -643,7 +646,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Esquivar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -658,8 +664,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.bloquear;
         logMessage(`${defender.name} tira 1d20 para Bloquear (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -668,7 +674,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Bloquear',
           outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -682,8 +691,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -692,7 +701,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Contraatacar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -714,8 +726,8 @@ function App() {
         minRoll = Math.max(1, minRoll - 2); // No bajar de 1
         logMessage(`${defender.name} tira 1d20 para Esquivar contra Lanzar Objeto (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -724,7 +736,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Esquivar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -739,8 +754,8 @@ function App() {
         minRoll = Math.min(21, minRoll + 2); // No superar 21 (imposible de sacar)
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Lanzar Objeto (-2 Penalizador => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -749,7 +764,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Bloquear',
           outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -765,8 +783,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -775,7 +793,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Contraatacar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -796,8 +817,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.esquivar;
         logMessage(`${defender.name} tira 1d20 para Esquivar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -806,7 +827,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Esquivar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -821,8 +845,8 @@ function App() {
         minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Embestir (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -831,7 +855,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Bloquear',
           outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -846,8 +873,8 @@ function App() {
         const [minRoll, maxRoll] = defender.defenseRanges.contraatacar;
         logMessage(`${defender.name} tira 1d20 para Contraatacar (Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -856,7 +883,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Contraatacar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -878,8 +908,8 @@ function App() {
         minRoll = Math.max(1, minRoll - 2); // Más fácil esquivar
         logMessage(`${defender.name} tira 1d20 para Esquivar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -888,7 +918,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Esquivar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'success' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -903,8 +936,8 @@ function App() {
         minRoll = Math.max(1, minRoll - 2); // Más fácil bloquear
         logMessage(`${defender.name} tira 1d20 para Bloquear contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -913,7 +946,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Bloquear',
           outcome: roll >= minRoll && roll <= maxRoll ? 'blocked' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -929,8 +965,8 @@ function App() {
         minRoll = Math.max(1, minRoll - 2); // Más fácil contraatacar
         logMessage(`${defender.name} tira 1d20 para Contraatacar contra Cargar (+2 Bono => Necesita ${minRoll}-${maxRoll}): ¡Sacó ${roll}!`);
         
-        // Actualizar el evento de la arena
-        setArenaEvent({
+        // Crear el evento de tirada de dados
+        diceRollEvent = {
           id: Date.now(),
           type: 'dice_roll',
           rollerName: defender.name,
@@ -939,7 +975,10 @@ function App() {
           targetMax: maxRoll,
           defenseType: 'Contraatacar',
           outcome: roll >= minRoll && roll <= maxRoll ? 'countered' : 'failure'
-        });
+        };
+        
+        // Actualizar el evento de la arena
+        setArenaEvent(diceRollEvent);
         
         if (roll >= minRoll && roll <= maxRoll) {
           defenseSuccessful = true;
@@ -965,13 +1004,18 @@ function App() {
     if (damageToAttacker > 0) {
       console.log("[DEBUG] Aplicando daño al ATACANTE..."); // LOG 4
       gameOver = applyDamage(attackerId, damageToAttacker);
-      setArenaEvent({
-        id: Date.now(),
-        type: 'action_effect',
-        actionName: 'Contraataque',
-        damage: damageToAttacker,
-        targetName: attacker.name
-      });
+      
+      // Retrasar la actualización del evento de la arena para permitir que la animación de tirada se complete
+      setTimeout(() => {
+        setArenaEvent({
+          id: Date.now(),
+          type: 'action_effect',
+          actionName: 'Contraataque',
+          damage: damageToAttacker,
+          targetName: attacker.name
+        });
+      }, 1500); // 1.5 segundos después de la tirada
+      
       console.log(`[DEBUG] Después de aplicar daño al ATACANTE. gameOver = ${gameOver}`); // LOG 5
     }
 
@@ -982,13 +1026,18 @@ function App() {
       if (damageToDefender > 0) { // Defensa fallida (Daño normal)
         console.log("[DEBUG] Defensa fallida - Llamando applyDamage..."); // LOG 7a
         gameOver = applyDamage(defenderId, damageToDefender);
-        setArenaEvent({
-          id: Date.now(),
-          type: 'action_effect',
-          actionName: actionState.type,
-          damage: damageToDefender,
-          targetName: defender.name
-        });
+        
+        // Retrasar la actualización del evento de la arena para permitir que la animación de tirada se complete
+        setTimeout(() => {
+          setArenaEvent({
+            id: Date.now(),
+            type: 'action_effect',
+            actionName: actionState.type,
+            damage: damageToDefender,
+            targetName: defender.name
+          });
+        }, 1500); // 1.5 segundos después de la tirada
+        
       } else { // Bloqueo exitoso (Daño solo a PA)
         console.log("[DEBUG] Bloqueo exitoso - Aplicando daño a PA..."); // LOG 7b
         // Necesitamos una versión de applyDamage que solo afecte PA
@@ -1016,14 +1065,16 @@ function App() {
         }));
         logMessage(`${defender.name} - PV: ${finalPV}/${defender.stats.pv_max}, PA: ${finalPA}/${defender.stats.pa_max}`);
         
-        // Actualizar el evento de la arena para mostrar el daño del bloqueo
-        setArenaEvent({
-          id: Date.now(),
-          type: 'action_effect',
-          actionName: 'Bloqueo',
-          damage: damageToDefenderPA,
-          targetName: defender.name
-        });
+        // Retrasar la actualización del evento de la arena para permitir que la animación de tirada se complete
+        setTimeout(() => {
+          setArenaEvent({
+            id: Date.now(),
+            type: 'action_effect',
+            actionName: 'Bloqueo',
+            damage: damageToDefenderPA,
+            targetName: defender.name
+          });
+        }, 1500); // 1.5 segundos después de la tirada
         
         if (gameOver) {
           setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: 'game_over' });
@@ -1041,19 +1092,14 @@ function App() {
       console.log("[DEBUG] Juego NO terminado. Reseteando estado y cambiando turno..."); // LOG 11
       // (Resetear concentración si aplica...)
 
-      setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-      setCurrentPlayerId(nextPlayerId);
-      const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
-      logMessage(`Turno de ${nextPlayerName}`);
-      // Quizás limpiar el arenaEvent aquí o con un timer?
-      // setArenaEvent(null); // Opcional: limpiar evento inmediatamente
-    } else {
-      console.log("[DEBUG] Juego TERMINADO. No se cambia turno."); // LOG 12
-      // Aquí podrías asegurarte de que el UI refleje el game over si no lo hace ya
-      if (actionState.stage !== 'game_over') {
-        setActionState(prev => ({ ...prev, stage: 'game_over' }));
-      }
+      // Retrasar el cambio de turno para permitir que se vea la animación de tirada
+      setTimeout(() => {
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+        logMessage(`Turno de ${nextPlayerName}`);
+      }, 2000); // 2 segundos después de la tirada
     }
   };
 
