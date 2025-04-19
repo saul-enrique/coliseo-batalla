@@ -26,15 +26,37 @@ function PlayerArea({
           <div className="atrapar-followup-section">
             <h4>Elige Opción de Atrapar:</h4>
             <div className="atrapar-followup-buttons">
-              {atraparOptions.map(option => (
-                <button
-                  key={option.id}
-                  className="action-button"
-                  onClick={() => handleAtraparFollowupSelect(option.id)}
-                >
-                  {option.name}
-                </button>
-              ))}
+              {atraparOptions.map(option => {
+                // Comprobar si todas las partes del Oponente están MAX rotas (para Opción 6)
+                const allOpponentPartsMaxBroken = opponentData &&
+                  opponentData.stats.brokenParts.arms >= 2 &&
+                  opponentData.stats.brokenParts.legs >= 2 &&
+                  opponentData.stats.brokenParts.ribs >= 2;
+
+                // Comprobar alternancia para Llave (para Opción 5)
+                const isLlaveBlockedByAlternation = option.id === 'atrapar_op5' && characterData.lastActionType === 'llave';
+
+                // Determinar si ESTE botón debe estar deshabilitado
+                let isButtonDisabled = false;
+                if (option.id === 'atrapar_op6' && allOpponentPartsMaxBroken) {
+                  isButtonDisabled = true;
+                } else if (isLlaveBlockedByAlternation) {
+                  isButtonDisabled = true;
+                }
+
+                return (
+                  <button
+                    key={option.id}
+                    className="action-button"
+                    onClick={() => handleAtraparFollowupSelect(option.id)}
+                    disabled={isButtonDisabled}
+                  >
+                    {option.name}
+                    {option.id === 'atrapar_op6' && allOpponentPartsMaxBroken ? ' (MAX)' : ''}
+                    {isLlaveBlockedByAlternation ? ' (Alternancia)' : ''}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : actionState.stage === 'awaiting_romper_target' ? (

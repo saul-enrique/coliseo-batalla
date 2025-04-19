@@ -18,6 +18,7 @@ const initialPlayer1Data = {
       legs: 0,
       ribs: 0
     },
+    isConcentrated: false, // <-- AÑADIR ESTADO
     lastActionType: null
   },
   defenseRanges: {
@@ -36,7 +37,8 @@ const initialPlayer1Data = {
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
-    atrapar: true
+    atrapar: true,
+    concentracion: true // <-- AÑADIR ACCIÓN
   },
   powers: [
     { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' },
@@ -72,6 +74,7 @@ const initialPlayer2Data = {
       legs: 0,
       ribs: 0
     },
+    isConcentrated: false, // <-- AÑADIR ESTADO
     lastActionType: null
   },
   defenseRanges: {
@@ -89,7 +92,8 @@ const initialPlayer2Data = {
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
-    atrapar: true
+    atrapar: true,
+    concentracion: true // <-- AÑADIR ACCIÓN
   },
   powers: [
     { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' },
@@ -778,6 +782,37 @@ function App() {
         });
         // No se pasa turno aquí, esperamos la defensa
         return; // Terminar handleActionInitiate
+      } else if (actionName === 'concentracion') {
+        logMessage(`${attacker.name} usa Concentración.`);
+
+        // 1. Actualizar estado del atacante: poner isConcentrated a true y registrar acción
+        const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+        setAttackerData(prev => ({
+          ...prev,
+          stats: {
+            ...prev.stats,
+            isConcentrated: true // <-- Marcar como concentrado
+          },
+          lastActionType: 'concentracion' // <-- Registrar como última acción
+        }));
+
+        // 2. Mensaje para ArenaDisplay
+        setArenaEvent({
+          id: Date.now(),
+          type: 'action_effect',
+          actionName: 'Concentración',
+          attackerName: attacker.name,
+          message: `${attacker.name} se concentra intensamente...`
+        });
+
+        // 3. Pasar el turno INMEDIATAMENTE
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        const nextPlayerName = nextPlayerId === player1Data.id ? player1Data.name : player2Data.name;
+        logMessage(`Turno de ${nextPlayerName}`);
+
+        return; // Terminar handleActionInitiate
       } else if (actionName === 'embestir') {
         // Verificar/gastar concentración si fuera necesario en el futuro
         logMessage(`${attacker.name} inicia Acción: Embestir!`);
@@ -843,6 +878,57 @@ function App() {
 
   // Función para manejar la selección de defensa
   const handleDefenseSelection = (defenseType) => {
+    const currentAttacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
+    const currentDefender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
+
+    if (actionState.type === 'Atrapar_Opcion6') {
+        const bonus = actionState.romperBonus || 0;
+        const targetPart = actionState.targetPart;
+        
+        if (!targetPart) {
+            logMessage('Error: No se ha seleccionado una parte del cuerpo para romper.');
+            setActionState({ active: false });
+            return;
+        }
+
+        const roll = rollDice();
+        const success = roll + bonus >= 15;
+        
+        if (success) {
+            const newBrokenParts = { ...currentDefender.stats.brokenParts };
+            newBrokenParts[targetPart] = (newBrokenParts[targetPart] || 0) + 1;
+            
+            setDefenderData({
+                ...currentDefender,
+                stats: {
+                    ...currentDefender.stats,
+                    brokenParts: newBrokenParts
+                }
+            });
+            
+            logMessage(`${currentAttacker.name} ha roto ${targetPart} de ${currentDefender.name}.`);
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Romper Mejorado',
+                outcome: 'success',
+                message: `${currentAttacker.name} ha roto ${targetPart} de ${currentDefender.name} con un bono de +${bonus}.`
+            });
+        } else {
+            logMessage(`${currentAttacker.name} falla al intentar romper ${targetPart} de ${currentDefender.name}.`);
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Romper Mejorado',
+                outcome: 'failure',
+                message: `${currentAttacker.name} falla al intentar romper ${targetPart} de ${currentDefender.name} a pesar del bono de +${bonus}.`
+            });
+        }
+        
+        setActionState({ active: false });
+        return;
+    }
+
     if (!actionState.active || actionState.stage !== 'awaiting_defense') return;
 
     const attackerId = actionState.attackerId;
@@ -1796,15 +1882,22 @@ function App() {
       }
 
       case 'atrapar_op6':
+        logMessage(`${attacker.name} usa Romper Mejorado.`);
         setActionState({
+          active: true,
           type: 'Atrapar_Opcion6',
-          attacker: currentPlayerId,
-          defender: currentPlayerId === 'player1' ? 'player2' : 'player1',
-          baseDamage: 40,
-          blockDamagePA: 20,
-          defensePenalty: 2
+          attackerId: attacker.id,
+          defenderId: defender.id,
+          stage: 'awaiting_romper_target',
+          romperBonus: 4 // Bono adicional para Romper
         });
-        logMessage(`${attacker.name} usa Ataque Vulnerante.`);
+        setArenaEvent({
+          id: Date.now(),
+          type: 'action_effect',
+          actionName: 'Romper Mejorado',
+          outcome: 'pending',
+          message: `${attacker.name} intenta romper una parte del cuerpo con un bono de +4.`
+        });
         break;
       case 'atrapar_op7': {
         logMessage(`${attacker.name} usa Ataque Imbloqueable (Opción 7)!`);
@@ -1839,91 +1932,29 @@ function App() {
     const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
     const setAttackerData = actionState.attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
-    const setDefenderData = actionState.defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data;
     const genericActionType = 'romper';
-    let gameOver = false;
 
     logMessage(`${attacker.name} elige romper ${partToBreak} de ${defender.name}!`);
 
-    // 1. Comprobar Límite de Roturas (Máximo 2 por parte)
+    // 1. Comprobar Límite de Roturas
     if (defender.stats.brokenParts[partToBreak] >= 2) {
-      logMessage(`ERROR LÓGICO: Intento de romper ${partToBreak} que ya está al máximo (UI debería haberlo prevenido).`);
-      setArenaEvent({ 
-        id: Date.now(), 
-        type: 'action_effect', 
-        outcome: 'invalid', 
-        message: `${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} ya no se pueden romper más.` 
-      });
-      return; // Simplemente salir, sin cambiar estado ni turno
-    }
-
-    // 2. Primera Tirada (Necesita 11-20)
-    const roll1 = rollD20();
-    logMessage(`Primer intento para romper ${partToBreak}: Tirada = ${roll1}`);
-    if (roll1 < 11) {
-        logMessage("¡Primer intento fallido!");
-        setArenaEvent({
+        logMessage(`ERROR LÓGICO: Intento de romper ${partToBreak} que ya está al máximo (UI debería haberlo prevenido).`);
+        setArenaEvent({ 
             id: Date.now(), 
             type: 'action_effect', 
-            actionName: `Romper ${partToBreak}`,
-            outcome: 'failure', 
-            message: `${attacker.name} falla el primer intento (Tirada: ${roll1})`
+            outcome: 'invalid', 
+            message: `${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} ya no se pueden romper más.` 
         });
-        setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
-        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-        setCurrentPlayerId(nextPlayerId);
-        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
         return;
     }
 
-    // 3. Segunda Tirada (Necesita 11-20)
-    logMessage("¡Primer intento exitoso! Realizando segundo intento...");
-    const roll2 = rollD20();
-    logMessage(`Segundo intento para romper ${partToBreak}: Tirada = ${roll2}`);
-    if (roll2 < 11) {
-        logMessage("¡Segundo intento fallido!");
-        setArenaEvent({
-            id: Date.now(), 
-            type: 'action_effect', 
-            actionName: `Romper ${partToBreak}`,
-            outcome: 'failure', 
-            message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})`
-        });
-        setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
-        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
-        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-        setCurrentPlayerId(nextPlayerId);
-        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
-        return;
-    }
+    // 2. Leer bono desde el estado de la acción
+    const bonus = actionState.romperBonus || 0;
 
-    // 4. Éxito: Romper la Parte!
-    logMessage(`¡Éxito! ¡${partToBreak} de ${defender.name} rotos!`);
-    const currentBreaks = defender.stats.brokenParts[partToBreak];
-    const newBreaks = currentBreaks + 1;
-    const newBrokenParts = { ...defender.stats.brokenParts, [partToBreak]: newBreaks };
-    const damagePV = 20;
-    gameOver = applyDamage(defender.id, damagePV, 'directPV');
-    setDefenderData(prev => ({
-        ...prev,
-        stats: { ...prev.stats, brokenParts: newBrokenParts }
-    }));
+    // 3. Ejecutar la lógica refactorizada
+    const gameOver = resolveRomperAttempt(attacker, defender, partToBreak, bonus);
 
-    let penaltyMessage = '';
-    if (partToBreak === 'arms') penaltyMessage = `-1 Bloquear (${newBreaks} vez/veces)`;
-    if (partToBreak === 'legs') penaltyMessage = `-1 Esquivar (${newBreaks} vez/veces)`;
-    if (partToBreak === 'ribs') penaltyMessage = `-1 Llave (${newBreaks} vez/veces)`;
-
-    setArenaEvent({
-        id: Date.now(), 
-        type: 'action_effect', 
-        actionName: `Romper ${partToBreak}`,
-        outcome: 'success',
-        message: `¡${partToBreak} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. Penalizador: ${penaltyMessage}.`
-    });
-
-    // 5. Actualizar lastActionType y pasar turno si no acabó el juego
+    // 4. Actualizar lastActionType y pasar turno si no acabó el juego
     if (!gameOver) {
         setAttackerData(prev => ({ ...prev, lastActionType: genericActionType }));
         setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null });
@@ -1931,6 +1962,74 @@ function App() {
         setCurrentPlayerId(nextPlayerId);
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
     }
+  };
+
+  // Función helper para resolver intentos de Romper
+  const resolveRomperAttempt = (attacker, defender, partToBreak, additionalBonus = 0) => {
+      const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+      const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+      const genericActionType = 'romper';
+      let gameOver = false;
+
+      // 1. Primera Tirada (Necesita 11-20) + BONO
+      const roll1Base = rollD20();
+      const roll1 = roll1Base + additionalBonus;
+      logMessage(`Primer intento para romper ${partToBreak}: Tirada = ${roll1Base}${additionalBonus > 0 ? `+${additionalBonus}` : ''} = ${roll1}`);
+      if (roll1 < 11) {
+          logMessage("¡Primer intento fallido!");
+          setArenaEvent({
+              id: Date.now(), 
+              type: 'action_effect', 
+              actionName: `Romper ${partToBreak}`,
+              outcome: 'failure', 
+              message: `${attacker.name} falla el primer intento (Tirada: ${roll1})`
+          });
+          return false;
+      }
+
+      // 2. Segunda Tirada (Necesita 11-20) + BONO
+      logMessage("¡Primer intento exitoso! Realizando segundo intento...");
+      const roll2Base = rollD20();
+      const roll2 = roll2Base + additionalBonus;
+      logMessage(`Segundo intento para romper ${partToBreak}: Tirada = ${roll2Base}${additionalBonus > 0 ? `+${additionalBonus}` : ''} = ${roll2}`);
+      if (roll2 < 11) {
+          logMessage("¡Segundo intento fallido!");
+          setArenaEvent({
+              id: Date.now(), 
+              type: 'action_effect', 
+              actionName: `Romper ${partToBreak}`,
+              outcome: 'failure', 
+              message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})`
+          });
+          return false;
+      }
+
+      // 3. Éxito: Romper la Parte!
+      logMessage(`¡Éxito! ¡${partToBreak} de ${defender.name} rotos!`);
+      const currentBreaks = defender.stats.brokenParts[partToBreak];
+      const newBreaks = currentBreaks + 1;
+      const newBrokenParts = { ...defender.stats.brokenParts, [partToBreak]: newBreaks };
+      const damagePV = 20;
+      gameOver = applyDamage(defender.id, damagePV, 'directPV');
+      setDefenderData(prev => ({
+          ...prev,
+          stats: { ...prev.stats, brokenParts: newBrokenParts }
+      }));
+
+      let penaltyMessage = '';
+      if (partToBreak === 'arms') penaltyMessage = `-1 Bloquear (${newBreaks} vez/veces)`;
+      if (partToBreak === 'legs') penaltyMessage = `-1 Esquivar (${newBreaks} vez/veces)`;
+      if (partToBreak === 'ribs') penaltyMessage = `-1 Llave (${newBreaks} vez/veces)`;
+
+      setArenaEvent({
+          id: Date.now(), 
+          type: 'action_effect', 
+          actionName: `Romper ${partToBreak}`,
+          outcome: 'success',
+          message: `¡${partToBreak} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. Penalizador: ${penaltyMessage}.`
+      });
+
+      return gameOver;
   };
 
   return (
