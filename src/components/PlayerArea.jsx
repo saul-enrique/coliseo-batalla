@@ -1,3 +1,5 @@
+import StatBar from './StatBar'; // Ajusta la ruta si es necesario
+
 function PlayerArea({ 
   characterData, 
   opponentData, 
@@ -14,9 +16,24 @@ function PlayerArea({
       <div className="character-info">
         <h3>{characterData.name}</h3>
         <div className="stats">
-          <div>PV: {characterData.stats.currentPV}/{characterData.stats.pv_max}</div>
-          <div>PA: {characterData.stats.currentPA}/{characterData.stats.pa_max}</div>
-          <div>PC: {characterData.stats.currentPC}/{characterData.stats.pc_max}</div>
+          <StatBar
+            label="PV"
+            currentValue={characterData.stats.currentPV}
+            maxValue={characterData.stats.pv_max}
+            color="#e74c3c" /* Rojo para Vida */
+          />
+          <StatBar
+            label="PA"
+            currentValue={characterData.stats.currentPA}
+            maxValue={characterData.stats.pa_max}
+            color="#3498db" /* Azul para Armadura */
+          />
+          <StatBar
+            label="PC"
+            currentValue={characterData.stats.currentPC}
+            maxValue={characterData.stats.pc_max}
+            color="#f1c40f" /* Amarillo/Dorado para Cosmos */
+          />
         </div>
       </div>
 
@@ -94,7 +111,26 @@ function PlayerArea({
           <div className="actions-section">
             <h4>Acciones</h4>
             <div className="action-buttons">
-              {Object.entries(characterData.actions).map(([actionName, actionValue]) => {
+              {Object.entries(characterData.actions)
+                .filter(([actionName, actionValue]) => {
+                  // Define las acciones que dependen de la concentración
+                  const concentrationActions = ['salto', 'velocidad_luz'];
+
+                  // Oculta 'Concentracion' si ya está concentrado
+                  if (actionName === 'concentracion') {
+                    return !characterData.stats.isConcentrated;
+                  }
+
+                  // Verifica si la acción actual requiere concentración
+                  if (concentrationActions.includes(actionName)) {
+                    // Si requiere concentración, solo se muestra si characterData.stats.isConcentrated es true
+                    return characterData.stats.isConcentrated;
+                  }
+                  
+                  // Muestra todas las demás acciones por defecto
+                  return true; 
+                })
+                .map(([actionName, actionValue]) => {
                 const isRomperAction = actionName === 'romper';
                 const allOpponentPartsMaxBroken = opponentData &&
                   opponentData.stats.brokenParts.arms >= 2 &&
@@ -119,6 +155,7 @@ function PlayerArea({
                 );
               })}
             </div>
+            {/* Comentado temporalmente hasta implementar lógica de poderes
             <h4>Poderes</h4>
             <div className="power-buttons">
               {characterData.powers.map(power => (
@@ -131,6 +168,7 @@ function PlayerArea({
                 </button>
               ))}
             </div>
+            */}
           </div>
         )
       ) : (

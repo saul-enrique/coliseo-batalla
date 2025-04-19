@@ -1,0 +1,49 @@
+/* StatBar.css */
+.stat-bar-container {
+  margin-bottom: 8px; /* Espacio entre barras */
+  width: 100%; /* Ocupa el ancho disponible */
+}
+
+.stat-bar-label {
+  font-size: 0.9em; /* Tamaño de la etiqueta */
+  margin-bottom: 3px; /* Espacio entre etiqueta y barra */
+  color: #e0e0e0;   /* Color del texto */
+  text-align: left; /* Alineación */
+}
+
+.stat-bar-background {
+  background-color: #2a2a2a; /* Color de fondo oscuro para la barra */
+  border-radius: 5px;      /* Bordes redondeados */
+  height: 14px;            /* Altura de la barra */
+  overflow: hidden;        /* Oculta el exceso del relleno */
+  border: 1px solid #444;  /* Borde sutil */
+  position: relative;      /* Necesario para posible texto superpuesto */
+}
+
+.stat-bar-fill {
+  background-color: #4CAF50; /* Color de relleno por defecto (verde) */
+  height: 100%;            /* Ocupa toda la altura */
+  border-radius: 4px;      /* Bordes redondeados (ligeramente menor al fondo) */
+  transition: width 0.4s ease-out; /* Transición suave al cambiar el ancho */
+  text-align: right;       /* Para posible texto interno */
+  color: white;            /* Color del texto interno */
+  font-size: 0.8em;        /* Tamaño del texto interno */
+  line-height: 14px;       /* Centra verticalmente el texto interno (igual a height) */
+  padding-right: 5px;      /* Espacio para el texto interno */
+}
+
+/* Si decides usar el texto encima con ::after (descomenta en StatBar.jsx también) */
+/*
+.stat-bar-background::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.8em;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+  z-index: 1; // Asegura que esté sobre el relleno
+}
+*/ 
