@@ -17,7 +17,8 @@ function PlayerArea({
   // Helper to determine if an action requires concentration
   const doesActionRequireConcentration = (actionName) => {
     // Define actions that need concentration here
-    const concentrationActions = ['velocidad_luz', 'salto'];
+    // *** ADDED 'engaño' TO THIS LIST ***
+    const concentrationActions = ['velocidad_luz', 'salto', 'combo', 'engaño'];
     return concentrationActions.includes(actionName);
   };
 
@@ -106,7 +107,8 @@ function PlayerArea({
                 <div className="action-buttons">
                    {Object.entries(characterData.actions)
                     .filter(([actionName, actionValue]) =>
-                       doesActionRequireConcentration(actionName) && actionValue // Check if action requires concentration and exists
+                       // Filter now includes 'engaño' via the helper function
+                       doesActionRequireConcentration(actionName) && actionValue
                     )
                     .map(([actionName, actionValue]) => (
                       <button
@@ -115,12 +117,13 @@ function PlayerArea({
                         onClick={() => handleActionInitiate(actionName)}
                         // disabled={!isCurrentPlayer} // Already checked isCurrentPlayer
                       >
-                        {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
+                        {actionName.charAt(0).toUpperCase() + actionName.slice(1).replace('_', ' ')} {/* Replace underscore for display */}
                       </button>
                     ))}
                 </div>
                 {/* Add Concentrated Powers here if applicable */}
               </>
+
             ) : (
               // --- Normal State: Show normal actions and Concentracion ---
               <>
@@ -128,13 +131,14 @@ function PlayerArea({
                 <div className="action-buttons">
                    {Object.entries(characterData.actions)
                     .filter(([actionName, actionValue]) => {
-                      // Hide actions that ALWAYS require concentration when not concentrated
+                      // Filter now hides 'engaño' via the helper function
                       if (doesActionRequireConcentration(actionName)) {
+                          return false; // Hide concentration actions
+                      }
+                      // Hide Concentracion button itself if already concentrated (shouldn't happen here, but safe check)
+                      if (actionName === 'concentracion' && characterData.stats.isConcentrated) {
                           return false;
                       }
-                      // Hide Concentracion button itself if already concentrated (handled above, but safe check)
-                      // if (actionName === 'concentracion' && characterData.stats.isConcentrated) return false;
-
                       // Show the action if it exists
                       return actionValue !== undefined && actionValue !== null;
                     })
@@ -166,38 +170,24 @@ function PlayerArea({
                                actionName // Default title
                            }
                         >
-                          {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
-                          {isRomperDisabled ? ' (MAX)' : ''}
-                          {isLlaveDisabled ? ' (Alternancia)' : ''}
+                          {actionName.charAt(0).toUpperCase() + actionName.slice(1).replace('_', ' ')} {/* Replace underscore */}
                         </button>
                       );
                   })}
                 </div>
-                {/* --- Powers Section (if implemented) ---
-                <h4>Poderes</h4>
-                <div className="power-buttons">
-                  {characterData.powers.map(power => (
-                    <button
-                      key={power.id}
-                      className="power-button"
-                      // onClick={() => handleActionInitiate(`poder_${power.id}`)} // Adjust power initiation logic
-                      disabled={true} // Disable until implemented
-                    >
-                      {power.name}
-                    </button>
-                  ))}
-                </div>
-                */}
+                {/* --- Powers Section (if implemented) --- */}
+                {/* ... (powers section commented out) ... */}
               </>
             )}
           </div>
         )
       ) : (
         // --- Opponent's Turn ---
-        actionState.active && actionState.defenderId === characterData.id && actionState.stage === 'awaiting_defense' ? (
+        actionState.active && actionState.defenderId === characterData.id && actionState.stage?.startsWith('awaiting_defense') ? ( // Check if stage starts with awaiting_defense
           // --- Defense Selection ---
           <div className="defense-buttons">
-            <h4>Elige Defensa contra {actionState.type}:</h4>
+             {/* Use actionState.type OR a more specific state property if needed */}
+            <h4>Elige Defensa contra {actionState.type?.replace('_', ' ') || 'Ataque'}:</h4>
             {/* Render defense buttons based on actionState.allowedDefenses */}
             {(!actionState.allowedDefenses || actionState.allowedDefenses.includes('esquivar')) && (
                 <button className="defense-button" onClick={() => handleDefenseSelection('esquivar')}>Esquivar</button>

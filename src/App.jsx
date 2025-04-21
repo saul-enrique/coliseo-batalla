@@ -6,7 +6,7 @@ import GameLog from './components/GameLog'       // Assuming GameLog is in compo
 import ArenaDisplay from './components/ArenaDisplay' // Assuming ArenaDisplay is in components folder
 import StatBar from './components/StatBar'; // Import StatBar if used directly in App, otherwise ensure PlayerArea imports it
 
-// Initial character data (Ensure Velocidad Luz damage is 50 and added to both if applicable)
+// Initial character data
 const initialPlayer1Data = {
   id: 'seiya_v2',
   name: 'SEIYA DE PEGASO II',
@@ -15,8 +15,10 @@ const initialPlayer1Data = {
     currentPV: 230, currentPA: 300, currentPC: 500,
     atrapar_bonus: 0,
     brokenParts: { arms: 0, legs: 0, ribs: 0 },
-    isConcentrated: false, // State for concentration
-    lastActionType: null
+    isConcentrated: false,
+    lastActionType: null,
+    fortalezaAvailable: false, // <-- NUEVO ESTADO: ¿Tiene el bono listo?
+    fortalezaUsedThisCombat: false // <-- NUEVO ESTADO: ¿Ya usó la acción?
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -26,8 +28,8 @@ const initialPlayer1Data = {
   actions: {
     golpe: 50,
     llave: 60,
-    salto: 80, // Base damage in data (we'll use 70 from rules in logic)
-    velocidad_luz: 50, // Damage updated to 50 as requested
+    salto: 80,
+    velocidad_luz: 50,
     embestir: 70,
     cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
@@ -35,12 +37,15 @@ const initialPlayer1Data = {
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
-    concentracion: true // Action to initiate concentration
+    concentracion: true,
+    combo: true,
+    engaño: true,
+    fortaleza: true // <-- NUEVA ACCIÓN
   },
-  powers: [ { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' }, { id: 'P002', name: 'Vuelo del Pegaso', cost: 100, type: ['LL'], damage: 100 }, { id: 'P003', name: 'Cometa Pegaso', cost: 200, type: ['R'], damage: 190, effects: '-1 Esq/-1 Bloq' }, ], // Shortened for brevity
-  bonuses: { pasivos: ['+2 Esq', '+1 ContrAtq', '+2 7º Sent', '+10 Dmg Salto/VelLuz/Embestir', '+1 Percep'], activos: ['+4 Int Div', '+4 Ayuda (aliados)', 'UltSuspiro 25% PV', 'Armadura Divina'], }, // Shortened
+  powers: [ /* ... */ ], // Shortened
+  bonuses: { /* ... */ }, // Shortened
   statusEffects: [],
-  supportRanges: { percepcion: [16, 20], septimo_sentido: [17, 20], puntos_vitales: [17, 20], romper: [11, 20], ayuda: [12, 20], }, // Shortened
+  supportRanges: { /* ... */ }, // Shortened
 };
 
 const initialPlayer2Data = {
@@ -51,19 +56,21 @@ const initialPlayer2Data = {
     currentPV: 280, currentPA: 300, currentPC: 400,
     atrapar_bonus: 0,
     brokenParts: { arms: 0, legs: 0, ribs: 0 },
-    isConcentrated: false, // State for concentration
-    lastActionType: null
+    isConcentrated: false,
+    lastActionType: null,
+    fortalezaAvailable: false, // <-- NUEVO ESTADO
+    fortalezaUsedThisCombat: false // <-- NUEVO ESTADO
   },
   defenseRanges: {
-    esquivar: [10, 20], // Shiryu's base dodge range
+    esquivar: [10, 20],
     bloquear: [6, 20],
     contraatacar: [14, 20],
   },
   actions: {
     golpe: 60,
     llave: 60,
-    salto: 70, // Base damage in data (we'll use 70 from rules in logic)
-    velocidad_luz: 50, // Added as per request
+    salto: 70,
+    velocidad_luz: 50,
     embestir: 60,
     cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
@@ -71,24 +78,19 @@ const initialPlayer2Data = {
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
-    concentracion: true // Action to initiate concentration
+    concentracion: true,
+    combo: true,
+    engaño: true,
+    fortaleza: true // <-- NUEVA ACCIÓN
   },
-  powers: [ { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' }, { id: 'S002', name: 'Dragón Volador', cost: 50, type: ['R', 'G'], damage: 70 }, { id: 'S003', name: 'Rozan Ryuu Hi Shou', cost: 100, type: ['R', 'G'], damage: 100, details: 'Weak Point on Counter' }, { id: 'S004', name: 'Cien Dragones de Rozan', cost: 200, type: ['RB', 'G'], damage: 160, effects: '-3 Bloquear' }, { id: 'S005', name: 'Último Dragón', cost: 200, type: ['LL'], damage: 200, details: 'Self-dmg 120, 1 use' }, { id: 'S006', name: 'Excalibur', cost: 100, type: ['R', 'RArm', 'M'], damage: 100, details: 'Ignore Def Bonus, Destroys Armor on 1-2' }, ], // Shortened
-  bonuses: { pasivos: ['+1 Percep', '+2 Bloq (ESC, ARM)', '+10 Dmg Golpe (ARM)'], activos: ['+2 Ayuda (aliados)', '+2 Int Div', 'Valentía del Dragón', 'Armadura Divina'], flags: ['ESC', 'ARM'] }, // Shortened
-  statusEffects: [],
-  supportRanges: { percepcion: [15, 20], septimo_sentido: [19, 20], puntos_vitales: [17, 20], romper: [11, 20], ayuda: [12, 20], }, // Shortened
+ powers: [ /* ... */ ], // Shortened
+ bonuses: { /* ... */ }, // Shortened
+ statusEffects: [],
+ supportRanges: { /* ... */ }, // Shortened
 };
 
 // Follow-up options for 'Atrapar'
-const atraparFollowupOptions = [
-  { id: 'atrapar_op1', name: 'Golpes Múltiples (3d20 Impar=20 Daño)' },
-  { id: 'atrapar_op2', name: 'Ataque Potente (80 Daño, Solo Bloqueo)' },
-  { id: 'atrapar_op3', name: 'Ataques Rápidos (3x20 Daño, Solo Bloqueo)' },
-  { id: 'atrapar_op4', name: 'Ataque Vulnerante (60 Daño, -2 Def Rival)' },
-  { id: 'atrapar_op5', name: 'Llave Mejorada (+3 Bono)' },
-  { id: 'atrapar_op6', name: 'Romper Mejorado (+4 Bono)' },
-  { id: 'atrapar_op7', name: 'Ataque Imbloqueable (60 Daño, Solo Esquiva)' },
-];
+const atraparFollowupOptions = [ /* ... */ ];
 
 function App() {
   // State for player data
@@ -113,13 +115,14 @@ function App() {
   const rollD20 = () => { return Math.floor(Math.random() * 20) + 1; };
 
   // Function to add messages to the game log
-  const logMessage = (message) => { console.log(message); setGameLog(prevLog => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prevLog].slice(0, 50)); }; // Added timestamp
+  const logMessage = (message) => { console.log(message); setGameLog(prevLog => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prevLog].slice(0, 50)); };
 
    // Function to create a delay (Promise-based)
    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   // Helper function to apply damage to a player
   const applyDamage = (targetPlayerId, damageAmount, damageType = 'normal') => {
+    // ... (applyDamage logic - unchanged) ...
     const targetData = targetPlayerId === player1Data.id ? player1Data : player2Data;
     const setTargetData = targetPlayerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
     let isGameOver = false;
@@ -163,6 +166,7 @@ function App() {
 
   // Helper function to resolve the 'Llave' action
   const resolveLlaveAction = (attacker, defender, additionalBonus = 0) => {
+    // ... (logic for Llave - unchanged) ...
     logMessage(`Resolviendo Llave [Bono Adicional: ${additionalBonus}]...`);
     const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
     const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
@@ -191,6 +195,7 @@ function App() {
 
   // Helper function to resolve 'Romper' attempts
   const resolveRomperAttempt = (attacker, defender, partToBreak, additionalBonus = 0) => {
+      // ... (logic for Romper - unchanged) ...
       const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
       let gameOver = false; const partKey = partToBreak;
       const roll1Base = rollD20(); const roll1 = roll1Base + additionalBonus;
@@ -220,8 +225,9 @@ function App() {
     const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
     const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
     const setAttackerData = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
-    const actionRequiresConcentration = ['velocidad_luz', 'salto'].includes(actionName);
-    const isAlternationAction = ['llave', 'romper'].includes(actionName);
+    // Define actions requiring concentration
+    const actionRequiresConcentration = ['velocidad_luz', 'salto', 'combo', 'engaño'].includes(actionName);
+    const isAlternationAction = ['llave', 'romper'].includes(actionName); // Add other alternation actions if needed
     if (actionRequiresConcentration && !attacker.stats.isConcentrated) { logMessage(`! ${attacker.name} necesita Concentración para usar ${actionName}!`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Se requiere Concentración para ${actionName}!` }); return; }
     if (isAlternationAction && attacker.stats.lastActionType === actionName) { logMessage(`¡Regla de Alternancia! No se puede usar ${actionName} dos veces seguidas.`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡No puedes usar ${actionName} consecutivamente!` }); return; }
 
@@ -229,8 +235,9 @@ function App() {
     if (['golpe', 'lanzar_obj', 'embestir', 'cargar', 'salto', 'velocidad_luz'].includes(actionName)) {
         logMessage(`${attacker.name} inicia Acción: ${actionName}!`);
         if (actionRequiresConcentration) { setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, isConcentrated: false } })); logMessage(`${attacker.name} usa su concentración para ${actionName}.`); }
-        const actionStateType = actionName.charAt(0).toUpperCase() + actionName.slice(1); // Capitalize (e.g., Velocidad_luz)
-        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: actionStateType, attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} usa ${actionName} contra ${defender.name}!` });
+        const displayActionName = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace('_',' ');
+        const actionStateType = actionName.charAt(0).toUpperCase() + actionName.slice(1); // e.g., 'Lanzar_obj', 'Velocidad_luz'
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: displayActionName, attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} usa ${displayActionName} contra ${defender.name}!` });
         let allowedDefensesForAction = null; if (actionName === 'velocidad_luz') { allowedDefensesForAction = ['esquivar', 'bloquear']; }
         setActionState({ active: true, type: actionStateType, attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', allowedDefenses: allowedDefensesForAction }); return;
     } else if (actionName === 'llave') {
@@ -257,155 +264,352 @@ function App() {
         logMessage(`${attacker.name} usa Concentración.`); if (attacker.stats.isConcentrated) { logMessage(`Error: ${attacker.name} ya está concentrado.`); return; }
         setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, isConcentrated: true }, lastActionType: 'concentracion' })); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Concentración', attackerName: attacker.name, message: `${attacker.name} se concentra intensamente...` });
         setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null }); const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id; setCurrentPlayerId(nextPlayerId); logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`); return;
+    } else if (actionName === 'combo') {
+        logMessage(`${attacker.name} inicia Acción: ¡Combo!`);
+        if (!attacker.stats.isConcentrated) { logMessage(`! ${attacker.name} necesita Concentración para usar Combo!`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Se requiere Concentración para Combo!` }); return; }
+        setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, isConcentrated: false } })); logMessage(`${attacker.name} usa su concentración para Combo.`);
+        const firstHitPenalty = 0;
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Combo - Golpe 1', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el primer golpe del combo!` });
+        setActionState({ active: true, type: 'Combo', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', currentComboHit: 1, currentDefensePenalty: firstHitPenalty, allowedDefenses: null, comboHitsLanded: 0 }); return;
+    } else if (actionName === 'engaño') {
+        logMessage(`${attacker.name} inicia Acción: ¡Engaño!`);
+        if (!attacker.stats.isConcentrated) { logMessage(`! ${attacker.name} necesita Concentración para usar Engaño!`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Se requiere Concentración para Engaño!` }); return; }
+        setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, isConcentrated: false } })); logMessage(`${attacker.name} usa su concentración para Engaño.`);
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Engaño - Ataque Falso', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza un ataque falso (+2 Esq. para ${defender.name})!` });
+        setActionState({ active: true, type: 'Engaño', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense_part_1', allowedDefenses: null }); return;
+    // --- ADDED: Fortaleza Initiation ---
+    } else if (actionName === 'fortaleza') {
+        logMessage(`${attacker.name} usa Fortaleza.`);
+        if (attacker.stats.fortalezaUsedThisCombat) {
+            logMessage(`¡${attacker.name} ya usó Fortaleza en este combate!`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Fortaleza solo se puede usar una vez por combate!` });
+            return;
+        }
+        if (attacker.stats.fortalezaAvailable) {
+             logMessage(`¡${attacker.name} ya tiene el bono de Fortaleza activo!`);
+             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Ya tienes el bono de Fortaleza preparado!` });
+             return;
+        }
+
+        // Activate Fortaleza
+        setAttackerData(prev => ({
+            ...prev,
+            stats: {
+                ...prev.stats,
+                fortalezaAvailable: true,
+                fortalezaUsedThisCombat: true,
+            },
+            lastActionType: 'fortaleza' // Record action type
+        }));
+
+        setArenaEvent({
+          id: Date.now(), type: 'action_effect', actionName: 'Fortaleza Activada',
+          attackerName: attacker.name,
+          message: `¡${attacker.name} activa Fortaleza! Bono +3 a Bloquear disponible.`
+        });
+
+        // Pass turn immediately
+        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null });
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        return;
     } else { logMessage(`Acción ${actionName} no implementada o reconocida.`); }
   };
 
 
-  // --- UPDATED handleDefenseSelection with Salto Logic ---
-  const handleDefenseSelection = async (defenseType) => { // Make the function async
-    if (!actionState.active || actionState.stage !== 'awaiting_defense' || !actionState.attackerId || !actionState.defenderId) { logMessage("Estado inválido para selección de defensa."); return; }
+  // --- handleDefenseSelection ---
+  const handleDefenseSelection = async (defenseType) => { // defenseType can now be 'bloquear_fortaleza'
+    if (!actionState.active || !actionState.stage?.startsWith('awaiting_defense') || !actionState.attackerId || !actionState.defenderId) { logMessage("Estado inválido para selección de defensa."); return; }
     const attackerId = actionState.attackerId; const defenderId = actionState.defenderId;
     const attacker = attackerId === player1Data.id ? player1Data : player2Data; const defender = defenderId === player1Data.id ? player1Data : player2Data;
     const setDefenderData = defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data; const setAttackerData = attackerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
-    const actionType = actionState.type; // This holds the Capitalized_name
-    if (actionState.allowedDefenses && !actionState.allowedDefenses.includes(defenseType)) { logMessage(`¡Defensa inválida! ${defenseType} no está permitido contra ${actionType}.`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡${defenseType} no permitido contra ${actionType}!` }); return; }
+    const actionType = actionState.type; // 'Golpe', 'Velocidad_luz', 'Combo', 'Engaño', etc.
+    const currentStage = actionState.stage; // e.g., 'awaiting_defense', 'awaiting_defense_part_1', 'awaiting_defense_part_2'
+
+    // Check if defense is allowed for this specific action/stage
+    // Handle 'bloquear_fortaleza' as a valid 'bloquear' for allowed checks
+    const effectiveDefenseType = defenseType === 'bloquear_fortaleza' ? 'bloquear' : defenseType;
+    if (actionState.allowedDefenses && !actionState.allowedDefenses.includes(effectiveDefenseType)) { logMessage(`¡Defensa inválida! ${defenseType} no está permitido contra ${actionType} (Fase: ${currentStage}).`); setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡${defenseType} no permitido contra ${actionType}!` }); return; }
 
     logMessage(`${defender.name} elige defenderse con: ${defenseType}`);
     const roll = rollD20();
     let defenseSuccessful = false, damageToDefender = 0, damageToDefenderPA = 0, damageToAttacker = 0;
     let gameOver = false, rollOutcome = 'failure', targetMin = null, targetMax = null;
     let defenseBonusOrPenaltyText = '', baseDamage = 0;
-    console.log(`[DEBUG] Resolviendo ${actionType} con defensa ${defenseType}. Tirada: ${roll}`);
+    let usingFortaleza = defenseType === 'bloquear_fortaleza'; // Flag if Fortaleza is being used
+
+    console.log(`[DEBUG] Resolviendo ${actionType} (${currentStage}) con defensa ${defenseType}. Tirada: ${roll}`);
+
+    // --- Consume Fortaleza Bonus if Used ---
+    if (usingFortaleza) {
+        if (!defender.stats.fortalezaAvailable) {
+            logMessage(`¡ERROR! ${defender.name} intentó usar Fortaleza pero no estaba disponible.`);
+            // Treat as normal block attempt without bonus
+            usingFortaleza = false; // Correct the flag
+            defenseType = 'bloquear'; // Revert defense type
+        } else {
+            logMessage(`¡${defender.name} usa el bono de Fortaleza (+3 Bloquear)!`);
+            setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, fortalezaAvailable: false } })); // Consume the bonus
+            defenseBonusOrPenaltyText = '(+3 Fortaleza)'; // Set text for message
+        }
+    }
 
     // --- Calculate Defense Success and Damage ---
     const actionKey = actionType.toLowerCase();
-    // Use rule-defined damage for specific actions if needed, otherwise fallback
-    if (actionType === 'Salto') {
-        baseDamage = 70; // Use 70 damage as per rule
-    } else if (actionType === 'Velocidad_luz') {
-         baseDamage = 50; // Use 50 damage as per rule
-    } else {
-        baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || actionState.baseDamage || 0;
-    }
 
+    // Get Base Damage
+    if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_1') baseDamage = 20;
+    else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') baseDamage = 50;
+    else if (actionType === 'Salto') baseDamage = 70;
+    else if (actionType === 'Velocidad_luz') baseDamage = 50;
+    else if (actionType === 'Combo') baseDamage = attacker.actions.golpe;
+    else baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || actionState.baseDamage || 0;
 
-    // --- Golpe Defense ---
-    if (actionType === 'Golpe') {
-        baseDamage = attacker.actions.golpe; // Recalculate for clarity if needed
-        if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'bloquear') { [targetMin, targetMax] = defender.defenseRanges.bloquear; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-    }
-    // --- Lanzar Objeto Defense ---
-    else if (actionType === 'Lanzar Objeto') {
-        baseDamage = attacker.actions.lanzar_obj;
-        if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'bloquear') { let [min, max] = defender.defenseRanges.bloquear; targetMin = Math.min(21, min + 2); targetMax = max; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.lanzar_obj / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-    }
-    // --- Embestir Defense ---
-    else if (actionType === 'Embestir') {
-        baseDamage = attacker.actions.embestir;
-        if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'bloquear') { let [min, max] = defender.defenseRanges.bloquear; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.embestir / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-    }
-    // --- Cargar Defense ---
-    else if (actionType === 'Cargar') {
-        baseDamage = attacker.actions.cargar;
-        if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'bloquear') { let [min, max] = defender.defenseRanges.bloquear; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'contraatacar') { let [min, max] = defender.defenseRanges.contraatacar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.cargar / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-    }
-    // --- Velocidad Luz Defense ---
-    else if (actionType === 'Velocidad_luz') {
-        baseDamage = 50; // Use rule damage
-        if (defenseType === 'esquivar') {
-            let [minRollBase, maxRollBase] = defender.defenseRanges.esquivar;
-            targetMin = Math.min(21, minRollBase + 4); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-4 Penaliz.)';
-            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
-        } else if (defenseType === 'bloquear') {
-            let [minRollBase, maxRollBase] = defender.defenseRanges.bloquear;
-            targetMin = Math.min(21, minRollBase + 6); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-6 Penaliz.)';
+    // --- Engaño Defense Logic ---
+    if (actionType === 'Engaño') {
+        // --- Part 1: Feint Attack ---
+        if (currentStage === 'awaiting_defense_part_1') {
+            logMessage("--- Resolviendo Engaño: Ataque Falso ---");
+            if (roll === 1) { defenseSuccessful = false; rollOutcome = 'failure'; damageToDefender = baseDamage; }
+            else if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono Esq.)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
+            else if (defenseType === 'bloquear' || usingFortaleza) { // Handle normal block and fortaleza block
+                let [min, max] = defender.defenseRanges.bloquear;
+                targetMin = usingFortaleza ? Math.max(1, min - 3) : min; // Apply Fortaleza bonus if used
+                targetMax = max;
+                if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+            }
+            else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; defenseBonusOrPenaltyText = ''; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
+
+            // Apply damage from Part 1
+            let attackerDamageMessage = "", defenderDamageMessage = "";
+            if (!gameOver && damageToAttacker > 0) { gameOver = applyDamage(attackerId, damageToAttacker); attackerDamageMessage = `${attacker.name} recibe ${damageToAttacker} de daño por contraataque.`; }
+            if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
+
+            // Construct message for Part 1 result
+            let part1Message = `${defender.name} intenta ${defenseType.replace('_fortaleza','')} ${defenseBonusOrPenaltyText} vs Ataque Falso. Tirada: ${roll}. `;
+            if (targetMin !== null) { part1Message += `(Necesita ${targetMin}-${targetMax}). `; }
+            switch (rollOutcome) { case 'success': part1Message += "¡Éxito Defendiendo! "; break; case 'failure': part1Message += "¡Fallo Defendiendo! "; break; case 'blocked': part1Message += "¡Bloqueado! "; break; case 'countered': part1Message += "¡Contraatacado! "; break; default: part1Message += "Resultado: "; break; }
+            part1Message += defenderDamageMessage + " " + attackerDamageMessage;
+
+            // Show Part 1 result
+            const part1Event = { id: Date.now(), type: 'defense_resolution', actionName: `Engaño Pt.1 vs ${defenseType.replace('_fortaleza','')}`, rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax, defenseType: defenseType, rollOutcome: rollOutcome, finalMessage: part1Message.trim(), gameOver: gameOver };
+            setArenaEvent(part1Event); logMessage(part1Message); await delay(2000);
+
+            // Transition to Part 2 (unless game over)
+            if (!gameOver) {
+                logMessage("--- Engaño: Preparando Ataque Real ---");
+                setActionState(prevState => ({ ...prevState, stage: 'awaiting_defense_part_2', allowedDefenses: ['bloquear'] }));
+                setArenaEvent({ id: Date.now() + 1, type: 'action_effect', actionName: 'Engaño - Ataque Real', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el ataque real! (${defender.name} solo puede Bloquear, -3 Penaliz.)` });
+                return; // Wait for defense selection for Part 2
+            } else {
+                 logMessage("[DEBUG] Juego TERMINADO durante Engaño Parte 1.");
+                 if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); }
+                 return; // Exit defense handling
+            }
+        // --- Part 2: Real Attack ---
+        } else if (currentStage === 'awaiting_defense_part_2') {
+            baseDamage = 50; // Base damage for real attack
+            logMessage("--- Resolviendo Engaño: Ataque Real ---");
+            defenseBonusOrPenaltyText = '(-3 Penaliz.)'; // Base penalty
+             if (usingFortaleza) defenseBonusOrPenaltyText = '(+3 Fortaleza, -3 Penaliz.)'; // Combined text if Fortaleza used
+
+            if (roll === 1) { defenseSuccessful = false; rollOutcome = 'failure'; damageToDefender = baseDamage; }
+            else if (defenseType === 'bloquear' || usingFortaleza) {
+                let [min, max] = defender.defenseRanges.bloquear;
+                let penalty = 3; // Base penalty for Engaño Pt.2
+                let bonus = usingFortaleza ? 3 : 0; // Bonus from Fortaleza
+                targetMin = Math.min(21, Math.max(1, min + penalty - bonus)); // Apply penalty and bonus
+                targetMax = max;
+                if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+            } else { logMessage(`¡Defensa inválida (${defenseType})! El Ataque Real solo puede ser bloqueado.`); defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'invalid'; targetMin=null; targetMax=null; }
+
+             // Apply damage from Part 2
+            let attackerDamageMessage = "", defenderDamageMessage = "";
+            if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
+
+            // Construct message for Part 2 result
+            let part2Message = `${defender.name} intenta ${defenseType.replace('_fortaleza','')} ${defenseBonusOrPenaltyText} vs Ataque Real. Tirada: ${roll}. `;
+            if (targetMin !== null) { part2Message += `(Necesita ${targetMin}-${targetMax}). `; }
+            switch (rollOutcome) { case 'blocked': part2Message += "¡Bloqueado! "; break; case 'failure': part2Message += "¡Fallo! "; break; case 'invalid': part2Message += "¡Defensa Inválida! "; break; default: part2Message += "Resultado: "; break; }
+            part2Message += defenderDamageMessage;
+             if (gameOver) { part2Message += ` *** ¡Combate Terminado! ***`; }
+
+            // Show Part 2 result
+            const part2Event = { id: Date.now(), type: 'defense_resolution', actionName: `Engaño Pt.2 vs ${defenseType.replace('_fortaleza','')}`, rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax, defenseType: defenseType, rollOutcome: rollOutcome, finalMessage: part2Message.trim(), gameOver: gameOver };
+            setArenaEvent(part2Event); logMessage(part2Message); await delay(1500);
+
+            // --- End Engaño Action & Pass Turn ---
+             if (!gameOver) {
+                 const actionTypeForHistory = 'engaño';
+                 setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionTypeForHistory } }));
+                 setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null });
+                 const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+                 setCurrentPlayerId(nextPlayerId);
+                 logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+            } else { console.log("[DEBUG] Juego TERMINADO durante Engaño Parte 2."); if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); } }
+            return; // Exit handleDefenseSelection
+        }
+    } // --- End Engaño Block ---
+
+    // --- Combo Defense Logic ---
+    else if (actionType === 'Combo') {
+        const currentHit = actionState.currentComboHit || 1;
+        const currentPenalty = actionState.currentDefensePenalty || 0;
+        baseDamage = attacker.actions.golpe; // Combo uses Golpe damage
+        logMessage(`--- Resolviendo Combo: Golpe #${currentHit} (Penaliz. Def: -${currentPenalty}) ---`);
+        defenseBonusOrPenaltyText = currentPenalty > 0 ? `(-${currentPenalty} Penaliz.)` : '';
+
+        if (roll === 1) { defenseSuccessful = false; rollOutcome = 'failure'; damageToDefender = baseDamage; }
+        else if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.min(21, min + currentPenalty); targetMax = max; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
+        else if (defenseType === 'bloquear' || usingFortaleza) { // Handle fortaleza block
+            let [min, max] = defender.defenseRanges.bloquear;
+            let bonus = usingFortaleza ? 3 : 0;
+            targetMin = Math.min(21, Math.max(1, min + currentPenalty - bonus)); // Apply penalty and bonus
+            targetMax = max;
+            if(usingFortaleza) defenseBonusOrPenaltyText += ' (+3 Fortaleza)'; // Append text
             if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+         }
+        else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
+
+        // Process result of this hit
+        let attackerDamageMessage = "", defenderDamageMessage = "";
+        if (!gameOver && damageToAttacker > 0) { gameOver = applyDamage(attackerId, damageToAttacker); attackerDamageMessage = `${attacker.name} recibe ${damageToAttacker} de daño por contraataque.`; }
+        if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
+
+        // Construct message for this hit
+        let hitMessage = `${defender.name} intenta ${defenseType.replace('_fortaleza','')} ${defenseBonusOrPenaltyText} vs Combo Golpe #${currentHit}. Tirada: ${roll}. `;
+        if (targetMin !== null) { hitMessage += `(Necesita ${targetMin}-${targetMax}). `; }
+        switch (rollOutcome) { case 'success': hitMessage += "¡Éxito Defendiendo! "; break; case 'failure': hitMessage += "¡Fallo Defendiendo! "; break; case 'blocked': hitMessage += "¡Bloqueado! "; break; case 'countered': hitMessage += "¡Contraatacado! "; break; default: hitMessage += "Resultado: "; break; }
+        hitMessage += defenderDamageMessage + " " + attackerDamageMessage;
+
+        // Show result of the hit
+        const hitEvent = { id: Date.now(), type: 'defense_resolution', actionName: `Combo Golpe #${currentHit} vs ${defenseType.replace('_fortaleza','')}`, rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax, defenseType: defenseType, rollOutcome: rollOutcome, finalMessage: hitMessage.trim(), gameOver: gameOver };
+        setArenaEvent(hitEvent); logMessage(hitMessage); await delay(2000);
+
+        // Decide if combo continues
+        if (defenseSuccessful || gameOver || currentHit >= 3) {
+            // COMBO ENDS
+            let finalComboMessage = "";
+            if (defenseSuccessful) { finalComboMessage = `¡${defender.name} detiene el combo en el golpe #${currentHit}!`; }
+            else if (gameOver) { finalComboMessage = `¡El golpe #${currentHit} del combo derrota a ${defender.name}! ¡Combate Terminado!`; }
+            else { finalComboMessage = `¡${attacker.name} completa el combo de 3 golpes!`; }
+            logMessage(finalComboMessage); setArenaEvent({ id: Date.now() + 1, type: 'action_effect', actionName: 'Fin del Combo', message: finalComboMessage, gameOver: gameOver }); await delay(1000);
+            if (!gameOver) { const actionTypeForHistory = 'combo'; setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionTypeForHistory } })); setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null }); const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id; setCurrentPlayerId(nextPlayerId); logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`); }
+            else { console.log("[DEBUG] Juego TERMINADO durante el combo."); } return;
+        } else {
+            // COMBO CONTINUES
+            const nextHit = currentHit + 1; const nextPenalty = nextHit === 2 ? 2 : 4;
+            logMessage(`¡El golpe #${currentHit} conecta! ${attacker.name} continúa con el golpe #${nextHit}...`);
+            setActionState(prevState => ({ ...prevState, stage: 'awaiting_defense', currentComboHit: nextHit, currentDefensePenalty: nextPenalty, }));
+            setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Combo - Golpe ${nextHit}`, attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el golpe #${nextHit}! (Defensa ${nextPenalty === 2 ? '-2' : '-4'})` }); return;
         }
-    }
-    // --- Salto Defense --- UPDATED LOGIC ---
-    else if (actionType === 'Salto') {
-        baseDamage = 70; // Use rule damage
-        if (defenseType === 'esquivar') {
-            let [minRollBase, maxRollBase] = defender.defenseRanges.esquivar;
-            targetMin = Math.min(21, minRollBase + 2); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; // Apply -2 penalty
-            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
-        } else if (defenseType === 'bloquear') {
-            let [minRollBase, maxRollBase] = defender.defenseRanges.bloquear;
-            targetMin = Math.min(21, minRollBase + 2); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; // Apply -2 penalty
-            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } // 20 PA damage on success
-        } else if (defenseType === 'contraatacar') {
-            [targetMin, targetMax] = defender.defenseRanges.contraatacar; // No penalty for counter
-            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } // Counter allowed
-        }
-    }
-    // --- Atrapar Follow-up Defenses ---
-    else if (actionType === 'Atrapar_Opcion2') { baseDamage = actionState.baseDamage || 80; const blockDamagePA = actionState.blockDamagePA || 20; if (defenseType === 'bloquear') { [targetMin, targetMax] = defender.defenseRanges.bloquear; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = blockDamagePA; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'invalid'; targetMin=null; targetMax=null; } }
-    else if (actionType === 'Atrapar_Opcion4') { baseDamage = actionState.baseDamage || 60; const blockDamagePA = actionState.blockDamagePA || 10; const defensePenalty = actionState.defensePenalty || 2; defenseBonusOrPenaltyText = `(-${defensePenalty} Penaliz.)`; if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.min(21, min + defensePenalty); targetMax = max; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else if (defenseType === 'bloquear') { let [min, max] = defender.defenseRanges.bloquear; targetMin = Math.min(21, min + defensePenalty); targetMax = max; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = blockDamagePA; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else if (defenseType === 'contraatacar') { let [min, max] = defender.defenseRanges.contraatacar; targetMin = Math.min(21, min + defensePenalty); targetMax = max; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } }
-    else if (actionType === 'Atrapar_Opcion7') { baseDamage = actionState.baseDamage || 60; if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'invalid'; targetMin=null; targetMax=null; } }
-    // --- Default for Unhandled Actions ---
+    } // --- End Combo Block ---
+
+    // --- Other Action Defenses (Golpe, Salto, VdL, etc.) ---
+    // --- This block now handles all actions EXCEPT Combo and Engaño ---
     else {
-         logMessage(`Cálculo de defensa para ${actionType} no implementado.`);
-         defenseSuccessful = true; rollOutcome = 'success'; targetMin = null; targetMax = null;
-    }
+        // Get Base Damage (already done above unless overridden by specific action)
+        if (actionType === 'Golpe') { baseDamage = attacker.actions.golpe; }
+        else if (actionType === 'Lanzar_obj') { baseDamage = attacker.actions.lanzar_obj; }
+        else if (actionType === 'Embestir') { baseDamage = attacker.actions.embestir; }
+        else if (actionType === 'Cargar') { baseDamage = attacker.actions.cargar; }
+        else if (actionType === 'Velocidad_luz') { baseDamage = 50; }
+        else if (actionType === 'Salto') { baseDamage = 70; }
+        else if (actionType === 'Atrapar_Opcion2') { baseDamage = actionState.baseDamage || 80; }
+        else if (actionType === 'Atrapar_Opcion4') { baseDamage = actionState.baseDamage || 60; }
+        else if (actionType === 'Atrapar_Opcion7') { baseDamage = actionState.baseDamage || 60; }
+        else { logMessage(`Cálculo de defensa para ${actionType} no implementado.`); baseDamage = 0; } // Default base damage if unknown
 
-    // --- Apply Damage ---
-    let attackerDamageMessage = "", defenderDamageMessage = "";
-    if (!gameOver && damageToAttacker > 0) { gameOver = applyDamage(attackerId, damageToAttacker); attackerDamageMessage = `${attacker.name} recibe ${damageToAttacker} de daño por contraataque.`; }
-    if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
+        // Calculate Defense Outcome
+        if (roll === 1) { defenseSuccessful = false; rollOutcome = 'failure'; damageToDefender = baseDamage; }
+        else if (defenseType === 'esquivar') {
+            let [min, max] = defender.defenseRanges.esquivar;
+            let bonus = 0;
+            if (actionType === 'Lanzar_obj') { bonus = 2; defenseBonusOrPenaltyText = '(+2 Bono)'; }
+            else if (actionType === 'Cargar') { bonus = 2; defenseBonusOrPenaltyText = '(+2 Bono)'; }
+            targetMin = Math.max(1, min - bonus); targetMax = max;
+            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+        } else if (defenseType === 'bloquear' || usingFortaleza) {
+            let [min, max] = defender.defenseRanges.bloquear;
+            let penalty = 0;
+            let bonus = usingFortaleza ? 3 : 0;
+            if(usingFortaleza) defenseBonusOrPenaltyText = '(+3 Fortaleza)';
 
-    // --- Construct Final Message in Spanish ---
-    let finalMessage = `${defender.name} intenta ${defenseType} ${defenseBonusOrPenaltyText} vs ${actionType.replace('_', ' ')}. Tirada: ${roll}. `;
-    if (targetMin !== null && targetMax !== null) { finalMessage += `(Necesita ${targetMin}-${targetMax}). `; }
-    else if (targetMin !== null) { finalMessage += `(Necesita >= ${targetMin}). `; }
+            if (actionType === 'Lanzar_obj') { penalty = 2; defenseBonusOrPenaltyText += '(-2 Penaliz.)'; }
+            else if (actionType === 'Velocidad_luz') { penalty = 6; defenseBonusOrPenaltyText += '(-6 Penaliz.)'; }
+            else if (actionType === 'Salto') { penalty = 2; defenseBonusOrPenaltyText += '(-2 Penaliz.)'; }
+            else if (actionType === 'Atrapar_Opcion4') { penalty = actionState.defensePenalty || 2; defenseBonusOrPenaltyText += `(-${penalty} Penaliz.)`; }
+            else if (actionType === 'Atrapar_Opcion2' && defenseType !== 'bloquear' && !usingFortaleza) { rollOutcome = 'invalid'; } // Invalid defense for option 2
 
-    switch (rollOutcome) {
-        case 'success': finalMessage += "¡Éxito! "; break;
-        case 'failure': finalMessage += "¡Fallo! "; break;
-        case 'blocked': finalMessage += "¡Bloqueado! "; break;
-        case 'countered': finalMessage += "¡Contraatacado! "; break;
-        case 'invalid': finalMessage += "¡Defensa Inválida! "; break;
-        default: finalMessage += "Resultado: "; break;
-    }
-    finalMessage += defenderDamageMessage + " " + attackerDamageMessage;
-    if (gameOver) { finalMessage += ` *** ¡Combate Terminado! ***`; }
+            if (rollOutcome !== 'invalid') {
+                 targetMin = Math.min(21, Math.max(1, min + penalty - bonus)); targetMax = max;
+                 if (roll >= targetMin && roll <= targetMax) {
+                     defenseSuccessful = true; rollOutcome = 'blocked';
+                     // Assign Block PA Damage based on action
+                     if (actionType === 'Golpe' || actionType === 'Velocidad_luz') damageToDefenderPA = 10;
+                     else if (actionType === 'Lanzar_obj' || actionType === 'Embestir' || actionType === 'Cargar') damageToDefenderPA = 20;
+                     else if (actionType === 'Salto') damageToDefenderPA = 20;
+                     else if (actionType === 'Atrapar_Opcion2') damageToDefenderPA = actionState.blockDamagePA || 20;
+                     else if (actionType === 'Atrapar_Opcion4') damageToDefenderPA = actionState.blockDamagePA || 10;
+                     else damageToDefenderPA = 10; // Default block damage?
+                 } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+            } else { // Handle invalid defense case for Atrapar_Opcion2
+                 damageToDefender = baseDamage;
+                 targetMin = null; targetMax = null;
+            }
 
-    // --- Create ONE Event Object ---
-    const resolutionEvent = {
-        id: Date.now(), type: 'defense_resolution', actionName: `${actionType.replace('_', ' ')} vs ${defenseType}`,
-        rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax,
-        defenseType: defenseType, rollOutcome: rollOutcome,
-        finalMessage: finalMessage.trim(), gameOver: gameOver
-    };
+        } else if (defenseType === 'contraatacar') {
+             [targetMin, targetMax] = defender.defenseRanges.contraatacar;
+             let bonus = 0;
+             if (actionType === 'Cargar') { bonus = 2; defenseBonusOrPenaltyText = '(+2 Bono)'; }
+             else if (actionType === 'Atrapar_Opcion4') { let penalty = actionState.defensePenalty || 2; bonus = -penalty; defenseBonusOrPenaltyText = `(-${penalty} Penaliz.)`; } // Apply penalty as negative bonus
+             let effectiveMin = Math.max(1, targetMin - bonus);
 
-    // --- Update Arena Display ---
-    logMessage(finalMessage); // Log the final outcome
-    setArenaEvent(resolutionEvent); // Update display ONCE
+             if (roll >= effectiveMin && roll <= targetMax) {
+                 defenseSuccessful = true; rollOutcome = 'countered';
+                 // Assign Counter Damage based on action
+                 if (actionType === 'Golpe' || actionType === 'Salto' || actionType === 'Atrapar_Opcion4') damageToAttacker = Math.floor(defender.actions.golpe / 2);
+                 else if (actionType === 'Lanzar_obj') damageToAttacker = Math.floor(defender.actions.lanzar_obj / 2);
+                 else if (actionType === 'Embestir') damageToAttacker = Math.floor(defender.actions.embestir / 2);
+                 else if (actionType === 'Cargar') damageToAttacker = Math.floor(defender.actions.cargar / 2);
+                 else damageToAttacker = 0; // Default if counter doesn't apply damage
+             } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+        }
 
-    // --- Delay and Pass Turn ---
-    if (!gameOver) {
-        console.log("[DEBUG] Juego NO terminado. Esperando y cambiando turno...");
-        await delay(2500); // Wait
-        const actionJustFinished = actionState.type;
-        const actionTypeForHistory = actionJustFinished.toLowerCase().startsWith('atrapar_') ? 'atrapar' : actionJustFinished.toLowerCase();
-        setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionTypeForHistory } }));
-        setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null });
-        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
-        setCurrentPlayerId(nextPlayerId);
-        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
-    } else { console.log("[DEBUG] Juego TERMINADO."); if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); } }
+        // --- Common Logic for applying damage, creating event, passing turn ---
+        let attackerDamageMessage = "", defenderDamageMessage = "";
+        if (!gameOver && damageToAttacker > 0) { gameOver = applyDamage(attackerId, damageToAttacker); attackerDamageMessage = `${attacker.name} recibe ${damageToAttacker} de daño por contraataque.`; }
+        if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
+
+        let finalMessage = `${defender.name} intenta ${defenseType.replace('_fortaleza','')} ${defenseBonusOrPenaltyText} vs ${actionType.replace('_', ' ')}. Tirada: ${roll}. `;
+        if (targetMin !== null) { finalMessage += `(Necesita ${targetMin}-${targetMax}). `; }
+        switch (rollOutcome) { case 'success': finalMessage += "¡Éxito! "; break; case 'failure': finalMessage += "¡Fallo! "; break; case 'blocked': finalMessage += "¡Bloqueado! "; break; case 'countered': finalMessage += "¡Contraatacado! "; break; case 'invalid': finalMessage += "¡Defensa Inválida! "; break; default: finalMessage += "Resultado: "; break; }
+        finalMessage += defenderDamageMessage + " " + attackerDamageMessage;
+        if (gameOver) { finalMessage += ` *** ¡Combate Terminado! ***`; }
+
+        const resolutionEvent = { id: Date.now(), type: 'defense_resolution', actionName: `${actionType.replace('_', ' ')} vs ${defenseType.replace('_fortaleza','')}`, rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax, defenseType: defenseType, rollOutcome: rollOutcome, finalMessage: finalMessage.trim(), gameOver: gameOver };
+
+        logMessage(finalMessage); setArenaEvent(resolutionEvent);
+        if (!gameOver) {
+            console.log("[DEBUG] Juego NO terminado. Esperando y cambiando turno...");
+            await delay(2500);
+            const actionJustFinished = actionState.type;
+            const actionTypeForHistory = actionJustFinished.toLowerCase().startsWith('atrapar_') ? 'atrapar' : actionJustFinished.toLowerCase();
+            setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionTypeForHistory } }));
+            setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null });
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        } else { console.log("[DEBUG] Juego TERMINADO."); if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); } }
+    } // End common logic block
+
   }; // End of handleDefenseSelection
 
 
   // Function to handle selection of 'Atrapar' follow-up option
   const handleAtraparFollowupSelect = (optionId) => {
+    // ... (logic for Atrapar follow-ups - unchanged) ...
     if (!actionState.active || actionState.type !== 'Atrapar' || actionState.stage !== 'awaiting_followup') { logMessage("Estado inválido para selección de seguimiento de Atrapar."); return; }
     const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
