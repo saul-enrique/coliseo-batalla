@@ -26,7 +26,7 @@ const initialPlayer1Data = {
   actions: {
     golpe: 50,
     llave: 60,
-    salto: 80, // Assumed to require concentration
+    salto: 80, // Base damage in data (we'll use 70 from rules in logic)
     velocidad_luz: 50, // Damage updated to 50 as requested
     embestir: 70,
     cargar: 80,
@@ -62,7 +62,7 @@ const initialPlayer2Data = {
   actions: {
     golpe: 60,
     llave: 60,
-    salto: 70, // Assumed to require concentration
+    salto: 70, // Base damage in data (we'll use 70 from rules in logic)
     velocidad_luz: 50, // Added as per request
     embestir: 60,
     cargar: 80,
@@ -261,7 +261,7 @@ function App() {
   };
 
 
-  // --- UPDATED handleDefenseSelection with Spanish Messages & CORRECTED CHECK ---
+  // --- UPDATED handleDefenseSelection with Salto Logic ---
   const handleDefenseSelection = async (defenseType) => { // Make the function async
     if (!actionState.active || actionState.stage !== 'awaiting_defense' || !actionState.attackerId || !actionState.defenderId) { logMessage("Estado inválido para selección de defensa."); return; }
     const attackerId = actionState.attackerId; const defenderId = actionState.defenderId;
@@ -275,22 +275,29 @@ function App() {
     let defenseSuccessful = false, damageToDefender = 0, damageToDefenderPA = 0, damageToAttacker = 0;
     let gameOver = false, rollOutcome = 'failure', targetMin = null, targetMax = null;
     let defenseBonusOrPenaltyText = '', baseDamage = 0;
-    console.log(`[DEBUG] Resolviendo ${actionType} con defensa ${defenseType}. Tirada: ${roll}`); // Keep this debug line
+    console.log(`[DEBUG] Resolviendo ${actionType} con defensa ${defenseType}. Tirada: ${roll}`);
 
     // --- Calculate Defense Success and Damage ---
-    // Use actionType directly as it's already capitalized (e.g., 'Golpe', 'Velocidad_luz')
-    const actionKey = actionType.toLowerCase(); // Get lowercase key for accessing attacker.actions
-    baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || actionState.baseDamage || 0; // Get damage
+    const actionKey = actionType.toLowerCase();
+    // Use rule-defined damage for specific actions if needed, otherwise fallback
+    if (actionType === 'Salto') {
+        baseDamage = 70; // Use 70 damage as per rule
+    } else if (actionType === 'Velocidad_luz') {
+         baseDamage = 50; // Use 50 damage as per rule
+    } else {
+        baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || actionState.baseDamage || 0;
+    }
+
 
     // --- Golpe Defense ---
-    if (actionType === 'Golpe') { // Compare with the Capitalized version from actionState.type
-        baseDamage = attacker.actions.golpe;
+    if (actionType === 'Golpe') {
+        baseDamage = attacker.actions.golpe; // Recalculate for clarity if needed
         if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
         else if (defenseType === 'bloquear') { [targetMin, targetMax] = defender.defenseRanges.bloquear; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
         else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
     }
     // --- Lanzar Objeto Defense ---
-    else if (actionType === 'Lanzar Objeto') { // Note: Assumes handleActionInitiate stores 'Lanzar Objeto'
+    else if (actionType === 'Lanzar Objeto') {
         baseDamage = attacker.actions.lanzar_obj;
         if (defenseType === 'esquivar') { let [min, max] = defender.defenseRanges.esquivar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
         else if (defenseType === 'bloquear') { let [min, max] = defender.defenseRanges.bloquear; targetMin = Math.min(21, min + 2); targetMax = max; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
@@ -311,27 +318,33 @@ function App() {
         else if (defenseType === 'contraatacar') { let [min, max] = defender.defenseRanges.contraatacar; targetMin = Math.max(1, min - 2); targetMax = max; defenseBonusOrPenaltyText = '(+2 Bono)'; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.cargar / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
     }
     // --- Velocidad Luz Defense ---
-    // **** CORRECTION HERE **** Compare with the actual value from actionState.type
-    else if (actionType === 'Velocidad_luz') { // Use the Capitalized_underscore version
-        baseDamage = attacker.actions.velocidad_luz;
+    else if (actionType === 'Velocidad_luz') {
+        baseDamage = 50; // Use rule damage
         if (defenseType === 'esquivar') {
             let [minRollBase, maxRollBase] = defender.defenseRanges.esquivar;
             targetMin = Math.min(21, minRollBase + 4); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-4 Penaliz.)';
-             console.log(`[DEBUG VdL Esq] Base Range: [${minRollBase}, ${maxRollBase}], Target: [${targetMin}, ${targetMax}], Roll: ${roll}`); // Simplified log
             if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
         } else if (defenseType === 'bloquear') {
             let [minRollBase, maxRollBase] = defender.defenseRanges.bloquear;
             targetMin = Math.min(21, minRollBase + 6); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-6 Penaliz.)';
-             console.log(`[DEBUG VdL Bloq] Base Range: [${minRollBase}, ${maxRollBase}], Target: [${targetMin}, ${targetMax}], Roll: ${roll}`); // Simplified log
             if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 10; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
         }
     }
-    // --- Salto Defense ---
-    else if (actionType === 'Salto') { // Assuming 'Salto' is stored
-        baseDamage = attacker.actions.salto;
-        if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'bloquear') { [targetMin, targetMax] = defender.defenseRanges.bloquear; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 15; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
-        else if (defenseType === 'contraatacar') { [targetMin, targetMax] = defender.defenseRanges.contraatacar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } }
+    // --- Salto Defense --- UPDATED LOGIC ---
+    else if (actionType === 'Salto') {
+        baseDamage = 70; // Use rule damage
+        if (defenseType === 'esquivar') {
+            let [minRollBase, maxRollBase] = defender.defenseRanges.esquivar;
+            targetMin = Math.min(21, minRollBase + 2); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; // Apply -2 penalty
+            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
+        } else if (defenseType === 'bloquear') {
+            let [minRollBase, maxRollBase] = defender.defenseRanges.bloquear;
+            targetMin = Math.min(21, minRollBase + 2); targetMax = maxRollBase; defenseBonusOrPenaltyText = '(-2 Penaliz.)'; // Apply -2 penalty
+            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = 20; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } // 20 PA damage on success
+        } else if (defenseType === 'contraatacar') {
+            [targetMin, targetMax] = defender.defenseRanges.contraatacar; // No penalty for counter
+            if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToAttacker = Math.floor(defender.actions.golpe / 2); rollOutcome = 'countered'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } // Counter allowed
+        }
     }
     // --- Atrapar Follow-up Defenses ---
     else if (actionType === 'Atrapar_Opcion2') { baseDamage = actionState.baseDamage || 80; const blockDamagePA = actionState.blockDamagePA || 20; if (defenseType === 'bloquear') { [targetMin, targetMax] = defender.defenseRanges.bloquear; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; damageToDefenderPA = blockDamagePA; rollOutcome = 'blocked'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'invalid'; targetMin=null; targetMax=null; } }
@@ -339,10 +352,8 @@ function App() {
     else if (actionType === 'Atrapar_Opcion7') { baseDamage = actionState.baseDamage || 60; if (defenseType === 'esquivar') { [targetMin, targetMax] = defender.defenseRanges.esquivar; if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; } else { damageToDefender = baseDamage; rollOutcome = 'failure'; } } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'invalid'; targetMin=null; targetMax=null; } }
     // --- Default for Unhandled Actions ---
     else {
-         logMessage(`Cálculo de defensa para ${actionType} no implementado.`); // Log the error clearly
-         defenseSuccessful = true; // Default to success to avoid unexpected damage
-         rollOutcome = 'success'; // Default outcome
-         targetMin = null; targetMax = null; // No target range known
+         logMessage(`Cálculo de defensa para ${actionType} no implementado.`);
+         defenseSuccessful = true; rollOutcome = 'success'; targetMin = null; targetMax = null;
     }
 
     // --- Apply Damage ---
@@ -351,7 +362,7 @@ function App() {
     if (!gameOver && (damageToDefender > 0 || damageToDefenderPA > 0)) { if (damageToDefender > 0) { gameOver = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageToDefender} de daño.`; } else { gameOver = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageToDefenderPA} de daño a la armadura.`; } }
 
     // --- Construct Final Message in Spanish ---
-    let finalMessage = `${defender.name} intenta ${defenseType} ${defenseBonusOrPenaltyText} vs ${actionType.replace('_', ' ')}. Tirada: ${roll}. `; // Replace underscore for display
+    let finalMessage = `${defender.name} intenta ${defenseType} ${defenseBonusOrPenaltyText} vs ${actionType.replace('_', ' ')}. Tirada: ${roll}. `;
     if (targetMin !== null && targetMax !== null) { finalMessage += `(Necesita ${targetMin}-${targetMax}). `; }
     else if (targetMin !== null) { finalMessage += `(Necesita >= ${targetMin}). `; }
 
@@ -363,16 +374,12 @@ function App() {
         case 'invalid': finalMessage += "¡Defensa Inválida! "; break;
         default: finalMessage += "Resultado: "; break;
     }
-    finalMessage += defenderDamageMessage + " " + attackerDamageMessage; // Append damage details
+    finalMessage += defenderDamageMessage + " " + attackerDamageMessage;
     if (gameOver) { finalMessage += ` *** ¡Combate Terminado! ***`; }
-
-     // --- DEBUG: Log final decision ---
-     // console.log(`[DEBUG Final] Outcome: ${rollOutcome}, DmgToDefender: ${damageToDefender}, DmgToDefenderPA: ${damageToDefenderPA}, DmgToAttacker: ${damageToAttacker}`);
-     // console.log(`--- Defensa Finalizada ---`); // Removed debug logs
 
     // --- Create ONE Event Object ---
     const resolutionEvent = {
-        id: Date.now(), type: 'defense_resolution', actionName: `${actionType.replace('_', ' ')} vs ${defenseType}`, // Replace underscore for display
+        id: Date.now(), type: 'defense_resolution', actionName: `${actionType.replace('_', ' ')} vs ${defenseType}`,
         rollerName: defender.name, rollValue: roll, targetMin: targetMin, targetMax: targetMax,
         defenseType: defenseType, rollOutcome: rollOutcome,
         finalMessage: finalMessage.trim(), gameOver: gameOver
