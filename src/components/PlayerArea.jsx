@@ -1,220 +1,221 @@
-import StatBar from './StatBar'; // Ajusta la ruta si es necesario
+import React from 'react'; // Import React if not already present
+import StatBar from './StatBar';
+import './PlayerArea.css'; // Make sure CSS path is correct
 
-function PlayerArea({ 
-  characterData, 
-  opponentData, 
-  isCurrentPlayer, 
-  handleActionInitiate, 
-  actionState, 
+function PlayerArea({
+  characterData,
+  opponentData, // Receive opponent data for checks
+  isCurrentPlayer,
+  handleActionInitiate,
+  actionState,
   handleDefenseSelection,
   handleAtraparFollowupSelect,
-  handleRomperTargetSelect,
-  atraparOptions 
+  handleRomperTargetSelect, // Receive the new handler
+  atraparOptions
 }) {
+
+  // Helper to determine if an action requires concentration
+  const doesActionRequireConcentration = (actionName) => {
+    // Define actions that need concentration here
+    const concentrationActions = ['velocidad_luz', 'salto'];
+    return concentrationActions.includes(actionName);
+  };
+
   return (
     <div className={`player-area ${isCurrentPlayer ? 'current-player' : ''}`}>
+      {/* Character Info and Stats */}
       <div className="character-info">
         <h3>{characterData.name}</h3>
         <div className="stats">
-          <StatBar
-            label="PV"
-            currentValue={characterData.stats.currentPV}
-            maxValue={characterData.stats.pv_max}
-            color="#e74c3c" /* Rojo para Vida */
-          />
-          <StatBar
-            label="PA"
-            currentValue={characterData.stats.currentPA}
-            maxValue={characterData.stats.pa_max}
-            color="#3498db" /* Azul para Armadura */
-          />
-          <StatBar
-            label="PC"
-            currentValue={characterData.stats.currentPC}
-            maxValue={characterData.stats.pc_max}
-            color="#f1c40f" /* Amarillo/Dorado para Cosmos */
-          />
+          <StatBar label="PV" currentValue={characterData.stats.currentPV} maxValue={characterData.stats.pv_max} color="#e74c3c" />
+          <StatBar label="PA" currentValue={characterData.stats.currentPA} maxValue={characterData.stats.pa_max} color="#3498db" />
+          <StatBar label="PC" currentValue={characterData.stats.currentPC} maxValue={characterData.stats.pc_max} color="#f1c40f" />
         </div>
+        {/* Display if player is concentrated */}
+        {characterData.stats.isConcentrated && <div className="status-indicator concentrated">Concentrado</div>}
       </div>
 
+      {/* Conditional Rendering based on Turn and Action State */}
       {isCurrentPlayer ? (
-        // Es mi turno
-        actionState.stage === 'awaiting_followup' ? (
-          <div className="atrapar-followup-section">
+        // --- Player's Turn ---
+        actionState.stage === 'awaiting_followup' && actionState.attackerId === characterData.id ? (
+          // --- Atrapar Follow-up Selection ---
+          <div className="followup-options-section"> {/* Updated class name */}
             <h4>Elige Opción de Atrapar:</h4>
-            <div className="atrapar-followup-buttons">
+            <div className="followup-options-buttons"> {/* Updated class name */}
               {atraparOptions.map(option => {
-                // Comprobar si todas las partes del Oponente están MAX rotas (para Opción 6)
+                // Disable Romper Mejorado if all opponent parts are max broken
                 const allOpponentPartsMaxBroken = opponentData &&
                   opponentData.stats.brokenParts.arms >= 2 &&
                   opponentData.stats.brokenParts.legs >= 2 &&
                   opponentData.stats.brokenParts.ribs >= 2;
+                const isRomperMejoradoDisabled = option.id === 'atrapar_op6' && allOpponentPartsMaxBroken;
 
-                // Comprobar alternancia para Llave (para Opción 5)
-                const isLlaveBlockedByAlternation = option.id === 'atrapar_op5' && characterData.lastActionType === 'llave';
+                // Disable Llave Mejorada if last action was Llave (Alternation)
+                const isLlaveBlockedByAlternation = option.id === 'atrapar_op5' && characterData.stats.lastActionType === 'llave';
 
-                // Determinar si ESTE botón debe estar deshabilitado
-                let isButtonDisabled = false;
-                if (option.id === 'atrapar_op6' && allOpponentPartsMaxBroken) {
-                  isButtonDisabled = true;
-                } else if (isLlaveBlockedByAlternation) {
-                  isButtonDisabled = true;
-                }
+                const isButtonDisabled = isRomperMejoradoDisabled || isLlaveBlockedByAlternation;
 
                 return (
                   <button
                     key={option.id}
-                    className="action-button"
+                    className="action-button" // Use consistent button class
                     onClick={() => handleAtraparFollowupSelect(option.id)}
                     disabled={isButtonDisabled}
+                    title={isRomperMejoradoDisabled ? "Todas las partes del rival están rotas al máximo" : isLlaveBlockedByAlternation ? "No se puede usar Llave consecutivamente" : option.name} // Add tooltip
                   >
                     {option.name}
-                    {option.id === 'atrapar_op6' && allOpponentPartsMaxBroken ? ' (MAX)' : ''}
+                    {isRomperMejoradoDisabled ? ' (MAX)' : ''}
                     {isLlaveBlockedByAlternation ? ' (Alternancia)' : ''}
                   </button>
                 );
               })}
             </div>
           </div>
-        ) : actionState.stage === 'awaiting_romper_target' ? (
+        ) : actionState.stage === 'awaiting_romper_target' && actionState.attackerId === characterData.id ? (
+          // --- Romper Target Selection ---
           <div className="romper-target-section">
             <h4>Elige Parte a Romper:</h4>
             <div className="romper-target-buttons">
-              <button
-                className="action-button"
-                onClick={() => handleRomperTargetSelect('arms')}
-                disabled={!opponentData || opponentData.stats.brokenParts.arms >= 2}
-              >
-                Brazos {opponentData?.stats.brokenParts.arms >= 2 ? '(MAX)' : ''}
-              </button>
-              <button
-                className="action-button"
-                onClick={() => handleRomperTargetSelect('legs')}
-                disabled={!opponentData || opponentData.stats.brokenParts.legs >= 2}
-              >
-                Piernas {opponentData?.stats.brokenParts.legs >= 2 ? '(MAX)' : ''}
-              </button>
-              <button
-                className="action-button"
-                onClick={() => handleRomperTargetSelect('ribs')}
-                disabled={!opponentData || opponentData.stats.brokenParts.ribs >= 2}
-              >
-                Costillas {opponentData?.stats.brokenParts.ribs >= 2 ? '(MAX)' : ''}
-              </button>
-            </div>
-          </div>
-        ) : actionState.active ? (
-          // Hay una acción activa, pero no es mi turno de elegir followup
-          <div className="waiting-message">Esperando defensa del rival...</div>
-        ) : (
-          // No hay acción activa, muestro mis acciones normales
-          <div className="actions-section">
-            <h4>Acciones</h4>
-            <div className="action-buttons">
-              {Object.entries(characterData.actions)
-                .filter(([actionName, actionValue]) => {
-                  // Define las acciones que dependen de la concentración
-                  const concentrationActions = ['salto', 'velocidad_luz'];
-
-                  // Oculta 'Concentracion' si ya está concentrado
-                  if (actionName === 'concentracion') {
-                    return !characterData.stats.isConcentrated;
-                  }
-
-                  // Verifica si la acción actual requiere concentración
-                  if (concentrationActions.includes(actionName)) {
-                    // Si requiere concentración, solo se muestra si characterData.stats.isConcentrated es true
-                    return characterData.stats.isConcentrated;
-                  }
-                  
-                  // Muestra todas las demás acciones por defecto
-                  return true; 
-                })
-                .map(([actionName, actionValue]) => {
-                const isRomperAction = actionName === 'romper';
-                const allOpponentPartsMaxBroken = opponentData &&
-                  opponentData.stats.brokenParts.arms >= 2 &&
-                  opponentData.stats.brokenParts.legs >= 2 &&
-                  opponentData.stats.brokenParts.ribs >= 2;
-
-                const isDisabledByTurn = !isCurrentPlayer || (actionState.active && actionState.stage !== null && actionState.stage !== 'awaiting_romper_target' && actionState.stage !== 'awaiting_followup');
-
-                return (
-                  <button
-                    key={actionName}
-                    className="action-button"
-                    onClick={() => handleActionInitiate(actionName)}
-                    disabled={
-                      isDisabledByTurn ||
-                      (isRomperAction && allOpponentPartsMaxBroken)
-                    }
-                  >
-                    {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
-                    {isRomperAction && allOpponentPartsMaxBroken ? ' (MAX)' : ''}
-                  </button>
-                );
+              {['arms', 'legs', 'ribs'].map(part => {
+                 const isPartMaxBroken = opponentData?.stats.brokenParts[part] >= 2;
+                 return (
+                    <button
+                        key={part}
+                        className="action-button" // Use consistent button class
+                        onClick={() => handleRomperTargetSelect(part)}
+                        disabled={!opponentData || isPartMaxBroken}
+                        title={isPartMaxBroken ? `Los ${part} del rival ya están rotos al máximo` : `Romper ${part}`}
+                    >
+                        {part.charAt(0).toUpperCase() + part.slice(1)} {isPartMaxBroken ? '(MAX)' : `(${opponentData?.stats.brokenParts[part]}/2)`}
+                    </button>
+                 );
               })}
             </div>
-            {/* Comentado temporalmente hasta implementar lógica de poderes
-            <h4>Poderes</h4>
-            <div className="power-buttons">
-              {characterData.powers.map(power => (
-                <button
-                  key={power.id}
-                  className="power-button"
-                  onClick={() => handleActionInitiate(`poder_${power.id}`)}
-                >
-                  {power.name}
-                </button>
-              ))}
-            </div>
-            */}
+          </div>
+        ) : actionState.active && actionState.attackerId === characterData.id ? (
+           // --- Waiting for opponent's defense ---
+           <div className="waiting-message">Esperando defensa del rival...</div>
+        ) : (
+          // --- Normal Action Selection ---
+          <div className="actions-section">
+            {characterData.stats.isConcentrated ? (
+              // --- Concentrated State: Show only concentration actions ---
+              <>
+                <h4>Acciones (Concentrado)</h4>
+                <div className="action-buttons">
+                   {Object.entries(characterData.actions)
+                    .filter(([actionName, actionValue]) =>
+                       doesActionRequireConcentration(actionName) && actionValue // Check if action requires concentration and exists
+                    )
+                    .map(([actionName, actionValue]) => (
+                      <button
+                        key={actionName}
+                        className="action-button"
+                        onClick={() => handleActionInitiate(actionName)}
+                        // disabled={!isCurrentPlayer} // Already checked isCurrentPlayer
+                      >
+                        {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
+                      </button>
+                    ))}
+                </div>
+                {/* Add Concentrated Powers here if applicable */}
+              </>
+            ) : (
+              // --- Normal State: Show normal actions and Concentracion ---
+              <>
+                <h4>Acciones</h4>
+                <div className="action-buttons">
+                   {Object.entries(characterData.actions)
+                    .filter(([actionName, actionValue]) => {
+                      // Hide actions that ALWAYS require concentration when not concentrated
+                      if (doesActionRequireConcentration(actionName)) {
+                          return false;
+                      }
+                      // Hide Concentracion button itself if already concentrated (handled above, but safe check)
+                      // if (actionName === 'concentracion' && characterData.stats.isConcentrated) return false;
+
+                      // Show the action if it exists
+                      return actionValue !== undefined && actionValue !== null;
+                    })
+                    .map(([actionName, actionValue]) => {
+                      // Disable Romper if opponent parts are maxed out
+                      const isRomperAction = actionName === 'romper';
+                      const allOpponentPartsMaxBroken = opponentData &&
+                        ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
+                      const isRomperDisabled = isRomperAction && allOpponentPartsMaxBroken;
+
+                      // Disable Llave if last action was Llave (Alternation)
+                      const isLlaveDisabled = actionName === 'llave' && characterData.stats.lastActionType === 'llave';
+
+                      // Disable Concentracion if already concentrated (handled by outer filter, but safe)
+                      const isConcentracionDisabled = actionName === 'concentracion' && characterData.stats.isConcentrated;
+
+                      const isDisabled = isRomperDisabled || isLlaveDisabled || isConcentracionDisabled;
+
+                      return (
+                        <button
+                          key={actionName}
+                          className="action-button"
+                          onClick={() => handleActionInitiate(actionName)}
+                          disabled={isDisabled}
+                           title={
+                               isRomperDisabled ? "Todas las partes del rival están rotas al máximo" :
+                               isLlaveDisabled ? "No se puede usar Llave consecutivamente" :
+                               isConcentracionDisabled ? "Ya estás concentrado" :
+                               actionName // Default title
+                           }
+                        >
+                          {actionName.charAt(0).toUpperCase() + actionName.slice(1)}
+                          {isRomperDisabled ? ' (MAX)' : ''}
+                          {isLlaveDisabled ? ' (Alternancia)' : ''}
+                        </button>
+                      );
+                  })}
+                </div>
+                {/* --- Powers Section (if implemented) ---
+                <h4>Poderes</h4>
+                <div className="power-buttons">
+                  {characterData.powers.map(power => (
+                    <button
+                      key={power.id}
+                      className="power-button"
+                      // onClick={() => handleActionInitiate(`poder_${power.id}`)} // Adjust power initiation logic
+                      disabled={true} // Disable until implemented
+                    >
+                      {power.name}
+                    </button>
+                  ))}
+                </div>
+                */}
+              </>
+            )}
           </div>
         )
       ) : (
-        // No es mi turno
+        // --- Opponent's Turn ---
         actionState.active && actionState.defenderId === characterData.id && actionState.stage === 'awaiting_defense' ? (
-          // Es mi turno de DEFENDER
+          // --- Defense Selection ---
           <div className="defense-buttons">
-            <h4>Elige Defensa:</h4>
-            
-            {/* Mostrar Esquivar si no hay restricción O si está permitida */}
+            <h4>Elige Defensa contra {actionState.type}:</h4>
+            {/* Render defense buttons based on actionState.allowedDefenses */}
             {(!actionState.allowedDefenses || actionState.allowedDefenses.includes('esquivar')) && (
-                <button 
-                    className="defense-button" 
-                    onClick={() => handleDefenseSelection('esquivar')}
-                >
-                    Esquivar
-                </button>
+                <button className="defense-button" onClick={() => handleDefenseSelection('esquivar')}>Esquivar</button>
             )}
-
-            {/* Mostrar Bloquear si no hay restricción O si está permitida */}
             {(!actionState.allowedDefenses || actionState.allowedDefenses.includes('bloquear')) && (
-                <button 
-                    className="defense-button" 
-                    onClick={() => handleDefenseSelection('bloquear')}
-                >
-                    Bloquear
-                </button>
+                <button className="defense-button" onClick={() => handleDefenseSelection('bloquear')}>Bloquear</button>
             )}
-
-            {/* Mostrar Contraatacar si no hay restricción O si está permitida */}
             {(!actionState.allowedDefenses || actionState.allowedDefenses.includes('contraatacar')) && (
-                <button 
-                    className="defense-button" 
-                    onClick={() => handleDefenseSelection('contraatacar')}
-                >
-                    Contraatacar
-                </button>
+                <button className="defense-button" onClick={() => handleDefenseSelection('contraatacar')}>Contraatacar</button>
             )}
           </div>
         ) : (
-          // No es mi turno y no estoy defendiendo
-          <div className="waiting-message">Esperando turno...</div>
+          // --- Waiting for Opponent ---
+          <div className="waiting-message">Esperando turno del rival...</div>
         )
       )}
     </div>
   );
 }
 
-export default PlayerArea; 
+export default PlayerArea;
