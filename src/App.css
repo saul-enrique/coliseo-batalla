@@ -13,7 +13,7 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: hidden; /* Prevents scrollbars on the body */
 }
 
 body {
@@ -21,298 +21,420 @@ body {
   background: radial-gradient(circle at center, #0a0a2a, #000000);
   color: #e0e0e0;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  display: flex; /* Needed for flex context */
+  flex-direction: column; /* Align children vertically */
 }
 
 .app-container {
   width: 100%;
-  height: 100%;
+  height: 100%; /* Ensure app container takes full height */
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* Align game container vertically */
 }
 
 .game-container {
   display: flex;
-  flex-direction: row;
+  flex-direction: row; /* Main layout: Player | Center | Player */
   justify-content: space-between;
-  align-items: stretch;
-  min-height: 100vh;
+  align-items: stretch; /* Make columns same height */
+  flex-grow: 1; /* Allow game container to fill available space */
   padding: 20px;
   gap: 20px;
   width: 100%;
+  overflow: hidden; /* Prevent internal content from overflowing */
 }
 
 .player-area {
-  flex: 1;
-  max-width: 30%;
-  border: 2px solid #d4af37;
+  flex: 1; /* Distribute space equally initially */
+  max-width: 30%; /* Limit player area width */
+  border: 2px solid #d4af37; /* Gold border */
   border-radius: 10px;
   padding: 20px;
-  background-color: rgba(10, 10, 40, 0.8);
+  background-color: rgba(10, 10, 40, 0.8); /* Dark blue semi-transparent */
   display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-  overflow-y: auto;
+  flex-direction: column; /* Stack elements vertically */
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); /* Gold glow */
+  overflow-y: auto; /* Allow scrolling if content overflows */
+  color: white; /* Default text color */
 }
 
 .center-column {
-  flex: 2;
+  flex: 2; /* Give center column more space */
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: space-between; /* Space out arena and log */
   gap: 20px;
-  max-width: 40%;
+  max-width: 40%; /* Limit center column width */
+  overflow: hidden; /* Prevent internal overflow */
 }
 
-.game-board {
-  border: 2px solid #c0c0c0;
+.game-board { /* Placeholder styling */
+  border: 2px solid #c0c0c0; /* Silver border */
   border-radius: 10px;
   padding: 20px;
-  background-color: rgba(40, 40, 60, 0.8);
-  min-height: 60%;
-  box-shadow: 0 0 15px rgba(192, 192, 192, 0.3);
+  background-color: rgba(40, 40, 60, 0.8); /* Grey-blue semi-transparent */
+  min-height: 60%; /* Ensure it takes significant space */
+  box-shadow: 0 0 15px rgba(192, 192, 192, 0.3); /* Silver glow */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #c0c0c0;
+  font-family: 'Cinzel', serif;
 }
 
 .game-log {
-  border: 2px solid #d4af37;
+  border: 2px solid #d4af37; /* Gold border */
   border-radius: 10px;
   padding: 15px;
-  background-color: rgba(10, 10, 30, 0.9);
-  max-height: 40%;
-  overflow-y: auto;
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  background-color: rgba(10, 10, 30, 0.9); /* Darker blue */
+  max-height: 40%; /* Limit height */
+  overflow-y: auto; /* Allow scrolling for log messages */
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); /* Gold glow */
+  display: flex; /* Use flexbox for internal layout */
+  flex-direction: column; /* Stack title and messages */
 }
 
 .game-log h4 {
-  color: #d4af37;
+  color: #d4af37; /* Gold */
   margin-bottom: 10px;
   font-family: 'Cinzel', serif;
   text-align: center;
   border-bottom: 1px solid #d4af37;
   padding-bottom: 5px;
+  flex-shrink: 0; /* Prevent title from shrinking */
 }
+
+.log-messages { /* Container for the actual log entries */
+    flex-grow: 1; /* Allow message area to fill space */
+    overflow-y: auto; /* Scroll only the messages */
+}
+
 
 .log-message {
   margin-bottom: 8px;
-  padding: 5px;
-  border-left: 2px solid #d4af37;
-  background-color: rgba(20, 20, 40, 0.5);
+  padding: 5px 5px 5px 10px; /* Add left padding */
+  border-left: 3px solid #d4af37; /* Thicker gold left border */
+  background-color: rgba(20, 20, 40, 0.6); /* Slightly lighter blue */
   font-size: 0.9em;
+  line-height: 1.4;
+  word-wrap: break-word; /* Wrap long messages */
 }
 
 /* --- Combined Button Styles --- */
 .action-button, .power-button, .defense-button {
-  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a); /* Dark blue gradient */
+  color: #d4af37; /* Gold text */
+  border: 1px solid #d4af37; /* Gold border */
   border-radius: 5px;
   padding: 8px 15px;
   margin: 5px;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', serif; /* Thematic font */
   font-weight: bold;
   text-transform: uppercase;
   font-size: 0.9em;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-  display: inline-flex;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /* Subtle shadow */
+  display: inline-flex; /* Align icon/text if needed */
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-width: 100px;
+  min-width: 100px; /* Minimum button width */
+  flex-grow: 1; /* Allow buttons to grow within flex containers */
 }
 
 .action-button:hover, .power-button:hover, .defense-button:hover {
-  background: linear-gradient(to bottom, #3a3a7a, #2a2a5a);
-  color: white;
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-  transform: translateY(-2px);
+  background: linear-gradient(to bottom, #3a3a7a, #2a2a5a); /* Lighter blue gradient on hover */
+  color: white; /* White text on hover */
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.7); /* Brighter gold glow on hover */
+  transform: translateY(-2px); /* Slight lift effect */
 }
 
 .action-button:disabled, .power-button:disabled, .defense-button:disabled {
-  background: linear-gradient(to bottom, #555, #333);
-  color: #888;
-  border-color: #666;
+  background: linear-gradient(to bottom, #555, #333); /* Grey gradient when disabled */
+  color: #888; /* Grey text */
+  border-color: #666; /* Grey border */
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+  opacity: 0.6; /* Slightly faded */
 }
 
-.defense-button {
-  /* Base defense button style */
-}
-
-.defense-button:hover {
-  /* Hover for base defense button */
-}
+/* --- Specific Button Type Styles (Boosted/Choice) --- */
 
 /* Style for Fortaleza Boosted Block Button */
 .defense-button.fortaleza-boost {
   border-color: white;
   color: white;
-  background: linear-gradient(to bottom, #4a3a7a, #3a2a5a); /* Purple-ish */
+  background: linear-gradient(to bottom, #4a3a7a, #3a2a5a); /* Purple-ish gradient */
 }
 .defense-button.fortaleza-boost:hover {
-  box-shadow: 0 0 12px rgba(200, 180, 255, 0.8);
+  box-shadow: 0 0 12px rgba(200, 180, 255, 0.8); /* Purple glow */
 }
 
 /* Style for Agilidad Boosted Dodge Button */
 .defense-button.agilidad-boost {
   border-color: white;
   color: white;
-  background: linear-gradient(to bottom, #3a7a4a, #2a5a3a); /* Green-ish */
+  background: linear-gradient(to bottom, #3a7a4a, #2a5a3a); /* Green-ish gradient */
 }
 .defense-button.agilidad-boost:hover {
-  box-shadow: 0 0 12px rgba(180, 255, 200, 0.8);
+  box-shadow: 0 0 12px rgba(180, 255, 200, 0.8); /* Green glow */
 }
 
 /* Style for Destreza Boosted Counter Button */
 .defense-button.destreza-boost {
   border-color: white;
   color: white;
-  background: linear-gradient(to bottom, #8a4a2a, #6a3a1a); /* Orange/Brown-ish */
+  background: linear-gradient(to bottom, #8a4a2a, #6a3a1a); /* Orange/Brown-ish gradient */
 }
 .defense-button.destreza-boost:hover {
-  box-shadow: 0 0 12px rgba(255, 200, 150, 0.8);
+  box-shadow: 0 0 12px rgba(255, 200, 150, 0.8); /* Orange glow */
 }
 
-/* --- Added Style for Resistencia Boosted Choice Button --- */
+/* Style for Resistencia Boosted Choice Button */
 .action-button.resistencia-boost-choice {
   border-color: white;
   color: white;
-  background: linear-gradient(to bottom, #8a2a6a, #6a1a4a); /* Pink/Magenta-ish */
+  background: linear-gradient(to bottom, #8a2a6a, #6a1a4a); /* Pink/Magenta-ish gradient */
 }
 .action-button.resistencia-boost-choice:hover {
-  box-shadow: 0 0 12px rgba(255, 150, 200, 0.8);
+  box-shadow: 0 0 12px rgba(255, 150, 200, 0.8); /* Pink glow */
+}
+
+/* Style for Concentrarse de Nuevo button (optional) */
+.action-button.concentrate-again-button {
+    background: linear-gradient(to bottom, #6a4a9a, #4a2a7a); /* Different purple gradient */
+    border-color: #c0a0f0;
+    color: #e0d0f0;
+}
+.action-button.concentrate-again-button:hover {
+    background: linear-gradient(to bottom, #7a5ab0, #5a3a8a);
+    color: white;
+    box-shadow: 0 0 12px rgba(200, 180, 255, 0.9);
 }
 
 
+/* --- Waiting Message --- */
 .waiting-message {
-  color: #a080d0;
+  color: #a080d0; /* Lavender */
   font-style: italic;
   text-align: center;
-  padding: 10px;
-  background-color: rgba(40, 30, 60, 0.5);
+  padding: 15px;
+  background-color: rgba(40, 30, 60, 0.5); /* Dark purple semi-transparent */
   border-radius: 5px;
-  margin: 10px 0;
+  margin: 20px auto; /* Center horizontally */
+  width: 80%; /* Limit width */
 }
 
 /* --- Status Indicator Styles --- */
 .status-indicator {
   text-align: center;
   font-weight: bold;
-  margin-top: 10px;
-  padding: 5px;
-  background-color: rgba(0, 0, 0, 0.3);
+  margin-top: 5px; /* Reduced top margin */
+  margin-bottom: 5px; /* Added bottom margin */
+  padding: 6px 10px; /* Slightly more padding */
+  background-color: rgba(0, 0, 0, 0.4); /* Slightly darker background */
   border-radius: 4px;
   font-family: 'Cinzel', serif;
   border: 1px solid;
   font-size: 0.9em;
+  display: block; /* Ensure it takes full width */
+  width: fit-content; /* Adjust width to content */
+  margin-left: auto; /* Center align if needed */
+  margin-right: auto; /* Center align if needed */
 }
 
-.status-indicator.concentrated {
+/* --- Concentration Level Indicators --- */
+.status-indicator.concentrated-1 {
   color: #a080d0; /* Purple */
   border-color: #a080d0;
-  background-color: rgba(60, 40, 80, 0.5);
+  background-color: rgba(60, 40, 80, 0.6); /* Slightly more opaque */
 }
+
+.status-indicator.concentrated-2 {
+  color: #d0b0ff; /* Lighter Purple */
+  border-color: #c0a0f0;
+  background-color: rgba(90, 60, 120, 0.7); /* Even more opaque purple */
+  text-shadow: 0 0 6px #ffffff; /* Brighter glow */
+  font-weight: bold;
+}
+
 
 .status-indicator.fortaleza {
   color: #60a0ff; /* Light Blue */
   border-color: #60a0ff;
-  background-color: rgba(40, 60, 100, 0.5);
+  background-color: rgba(40, 60, 100, 0.6);
 }
 
 .status-indicator.agilidad {
   color: #50d090; /* Light Green */
   border-color: #50d090;
-  background-color: rgba(40, 90, 60, 0.5);
+  background-color: rgba(40, 90, 60, 0.6);
 }
 
 .status-indicator.destreza {
   color: #ffaa60; /* Orange */
   border-color: #ffaa60;
-  background-color: rgba(100, 60, 30, 0.5);
+  background-color: rgba(100, 60, 30, 0.6);
 }
 
-/* --- Renamed Maestría to Resistencia Status Style --- */
 .status-indicator.resistencia {
   color: #ff80c0; /* Pink/Magenta */
   border-color: #ff80c0;
-  background-color: rgba(100, 40, 70, 0.5);
+  background-color: rgba(100, 40, 70, 0.6);
 }
 
 
-/* Estilos para la pantalla de Game Over */
+/* --- Game Over Screen --- */
 .game-over-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  position: absolute; /* Cover the whole screen */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   padding: 20px;
   text-align: center;
-  background: radial-gradient(circle at center, #1a0a2a, #000000);
+  background: radial-gradient(circle at center, #1a0a2a, #000000); /* Dark background */
+  z-index: 100; /* Ensure it's on top */
 }
 
 .game-over-screen h2 {
-  color: #ff3333;
-  font-size: 2.5em;
-  margin-bottom: 20px;
+  color: #ff3333; /* Red text */
+  font-size: 3em; /* Larger text */
+  margin-bottom: 25px;
   font-family: 'Cinzel', serif;
-  text-shadow: 0 0 10px rgba(255, 51, 51, 0.7);
+  text-shadow: 0 0 15px rgba(255, 51, 51, 0.8); /* Stronger red glow */
+  animation: pulse-red 2s infinite; /* Add pulsing animation */
 }
 
+@keyframes pulse-red {
+    0% { text-shadow: 0 0 10px rgba(255, 51, 51, 0.7); }
+    50% { text-shadow: 0 0 20px rgba(255, 81, 81, 1); }
+    100% { text-shadow: 0 0 10px rgba(255, 51, 51, 0.7); }
+}
+
+
 .play-again-button {
-  padding: 12px 25px;
-  border: 1px solid gold;
-  border-radius: 25px;
-  background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
+  padding: 15px 30px; /* Larger padding */
+  border: 2px solid gold; /* Thicker border */
+  border-radius: 30px; /* More rounded */
+  background: linear-gradient(to bottom, #3a3a7a, #1a1a3a); /* Slightly different gradient */
   color: gold;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Cinzel', serif;
   font-weight: bold;
   text-transform: uppercase;
-  font-size: 1.1em;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-  margin-bottom: 20px;
+  font-size: 1.2em; /* Larger font */
+  box-shadow: 0 5px 10px rgba(0,0,0,0.6); /* Stronger shadow */
+  margin-bottom: 30px; /* More space below */
 }
 
 .play-again-button:hover {
-  background: linear-gradient(to bottom, #3a3a7a, #2a2a5a);
+  background: linear-gradient(to bottom, #4a4aac, #2a2a6a); /* Lighter hover gradient */
   color: white;
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
-  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); /* Brighter hover glow */
+  transform: translateY(-3px) scale(1.05); /* Lift and scale up */
 }
 
-.game-over-screen .game-log {
-  max-height: 300px;
-  width: 80%;
-  max-width: 600px;
+.game-over-screen .game-log { /* Style log specifically on game over screen */
+  max-height: 350px; /* Allow slightly more height */
+  width: 90%; /* Wider */
+  max-width: 700px; /* Max width */
+  border-color: #888; /* Grey border */
+  background-color: rgba(20, 20, 20, 0.85); /* Darker background */
+}
+.game-over-screen .game-log h4 {
+    color: #aaa; /* Grey title */
+    border-color: #666;
+}
+.game-over-screen .log-message {
+    border-color: #666;
+    background-color: rgba(40, 40, 40, 0.7);
 }
 
-/* Media queries para diseño responsive */
+
+/* --- Media queries for responsive design --- */
+@media (max-width: 1200px) { /* Adjust breakpoint if needed */
+  .player-area { max-width: 35%; }
+  .center-column { max-width: 30%; }
+}
+
 @media (max-width: 900px) {
   .game-container {
-    flex-direction: column;
+    flex-direction: column; /* Stack vertically on smaller screens */
     padding: 10px;
+    height: auto; /* Allow height to adjust to content */
+    min-height: 100vh; /* Still ensure it takes at least full viewport height */
+    overflow-y: auto; /* Allow scrolling for the whole container */
   }
 
   .player-area, .center-column {
-    max-width: 100%;
-    min-height: auto;
+    max-width: 100%; /* Take full width */
+    width: 100%;
+    min-height: auto; /* Reset min-height */
+    flex-basis: auto; /* Reset flex basis */
+    margin-bottom: 15px; /* Add space between stacked sections */
   }
 
   .player-area {
-    min-height: 200px;
+     order: 1; /* Default order */
+     /* Adjust padding or min-height if needed for small screens */
+     padding: 15px;
+  }
+   /* Optional: Put player 2 area at the bottom */
+  .player-area:last-of-type {
+      order: 3;
+  }
+
+
+  .center-column {
+      order: 2; /* Place center column between player areas */
+      max-height: 50vh; /* Limit center column height */
   }
 
   .game-board {
-    min-height: 300px;
+    min-height: 250px; /* Adjust height */
   }
 
   .game-log {
-    max-height: 200px;
+    max-height: 200px; /* Adjust height */
   }
+
+  .action-button, .power-button, .defense-button {
+      padding: 6px 10px; /* Smaller padding on buttons */
+      font-size: 0.8em; /* Smaller font */
+      min-width: 80px;
+  }
+}
+
+@media (max-width: 600px) {
+    .player-area {
+        padding: 10px;
+    }
+    .game-board {
+        min-height: 200px;
+    }
+    .game-log {
+        padding: 10px;
+    }
+    .log-message {
+        font-size: 0.85em;
+    }
+    .status-indicator {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
+     .game-over-screen h2 {
+        font-size: 2.2em;
+     }
+     .play-again-button {
+        padding: 12px 25px;
+        font-size: 1em;
+     }
 }
