@@ -84,7 +84,7 @@ body {
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
 }
 
-.game-log h3 {
+.game-log h4 {
   color: #d4af37;
   margin-bottom: 10px;
   font-family: 'Cinzel', serif;
@@ -101,6 +101,7 @@ body {
   font-size: 0.9em;
 }
 
+/* --- Combined Button Styles --- */
 .action-button, .power-button, .defense-button {
   background: linear-gradient(to bottom, #2a2a5a, #1a1a3a);
   color: #d4af37;
@@ -115,6 +116,11 @@ body {
   text-transform: uppercase;
   font-size: 0.9em;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 100px;
 }
 
 .action-button:hover, .power-button:hover, .defense-button:hover {
@@ -124,16 +130,63 @@ body {
   transform: translateY(-2px);
 }
 
+.action-button:disabled, .power-button:disabled, .defense-button:disabled {
+  background: linear-gradient(to bottom, #555, #333);
+  color: #888;
+  border-color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .defense-button {
-  background: linear-gradient(to bottom, #3a2a5a, #2a1a3a);
-  border-color: #a080d0;
-  color: #a080d0;
+  /* Base defense button style */
 }
 
 .defense-button:hover {
-  background: linear-gradient(to bottom, #4a3a7a, #3a2a5a);
-  box-shadow: 0 0 10px rgba(160, 128, 208, 0.7);
+  /* Hover for base defense button */
 }
+
+/* Style for Fortaleza Boosted Block Button */
+.defense-button.fortaleza-boost {
+  border-color: white;
+  color: white;
+  background: linear-gradient(to bottom, #4a3a7a, #3a2a5a); /* Purple-ish */
+}
+.defense-button.fortaleza-boost:hover {
+  box-shadow: 0 0 12px rgba(200, 180, 255, 0.8);
+}
+
+/* Style for Agilidad Boosted Dodge Button */
+.defense-button.agilidad-boost {
+  border-color: white;
+  color: white;
+  background: linear-gradient(to bottom, #3a7a4a, #2a5a3a); /* Green-ish */
+}
+.defense-button.agilidad-boost:hover {
+  box-shadow: 0 0 12px rgba(180, 255, 200, 0.8);
+}
+
+/* Style for Destreza Boosted Counter Button */
+.defense-button.destreza-boost {
+  border-color: white;
+  color: white;
+  background: linear-gradient(to bottom, #8a4a2a, #6a3a1a); /* Orange/Brown-ish */
+}
+.defense-button.destreza-boost:hover {
+  box-shadow: 0 0 12px rgba(255, 200, 150, 0.8);
+}
+
+/* --- Added Style for Resistencia Boosted Choice Button --- */
+.action-button.resistencia-boost-choice {
+  border-color: white;
+  color: white;
+  background: linear-gradient(to bottom, #8a2a6a, #6a1a4a); /* Pink/Magenta-ish */
+}
+.action-button.resistencia-boost-choice:hover {
+  box-shadow: 0 0 12px rgba(255, 150, 200, 0.8);
+}
+
 
 .waiting-message {
   color: #a080d0;
@@ -144,6 +197,51 @@ body {
   border-radius: 5px;
   margin: 10px 0;
 }
+
+/* --- Status Indicator Styles --- */
+.status-indicator {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 10px;
+  padding: 5px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: 'Cinzel', serif;
+  border: 1px solid;
+  font-size: 0.9em;
+}
+
+.status-indicator.concentrated {
+  color: #a080d0; /* Purple */
+  border-color: #a080d0;
+  background-color: rgba(60, 40, 80, 0.5);
+}
+
+.status-indicator.fortaleza {
+  color: #60a0ff; /* Light Blue */
+  border-color: #60a0ff;
+  background-color: rgba(40, 60, 100, 0.5);
+}
+
+.status-indicator.agilidad {
+  color: #50d090; /* Light Green */
+  border-color: #50d090;
+  background-color: rgba(40, 90, 60, 0.5);
+}
+
+.status-indicator.destreza {
+  color: #ffaa60; /* Orange */
+  border-color: #ffaa60;
+  background-color: rgba(100, 60, 30, 0.5);
+}
+
+/* --- Renamed Maestría to Resistencia Status Style --- */
+.status-indicator.resistencia {
+  color: #ff80c0; /* Pink/Magenta */
+  border-color: #ff80c0;
+  background-color: rgba(100, 40, 70, 0.5);
+}
+
 
 /* Estilos para la pantalla de Game Over */
 .game-over-screen {
@@ -200,20 +298,20 @@ body {
     flex-direction: column;
     padding: 10px;
   }
-  
+
   .player-area, .center-column {
     max-width: 100%;
     min-height: auto;
   }
-  
+
   .player-area {
     min-height: 200px;
   }
-  
+
   .game-board {
     min-height: 300px;
   }
-  
+
   .game-log {
     max-height: 200px;
   }
