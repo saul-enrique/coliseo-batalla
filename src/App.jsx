@@ -28,7 +28,8 @@ const initialPlayer1Data = {
     comboVelocidadLuzUsedThisCombat: false,
     dobleSaltoUsedThisCombat: false,
     arrojarUsedThisCombat: false,
-    furiaUsedThisCombat: false, // Nueva propiedad para Furia
+    furiaUsedThisCombat: false,
+    apresarUsedThisCombat: false, // Nueva propiedad para Apresar
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -36,13 +37,13 @@ const initialPlayer1Data = {
     contraatacar: [13, 20],
   },
   actions: {
-    golpe: 50, // Daño base para Furia
+    golpe: 50,
     llave: 60,
     salto: 80,
     velocidad_luz: 50,
     embestir: 70,
     cargar: 80,
-    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' }, // Usado por la nueva acción Apresar para el daño
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
@@ -58,7 +59,8 @@ const initialPlayer1Data = {
     combo_velocidad_luz: true,
     doble_salto: true,
     arrojar: true,
-    furia: true, // Nueva acción Furia
+    furia: true,
+    apresar: true, // Nueva acción Apresar
   },
   powers: [ { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' }, { id: 'P002', name: 'Vuelo del Pegaso', cost: 100, type: ['LL'], damage: 100 }, { id: 'P003', name: 'Cometa Pegaso', cost: 200, type: ['R'], damage: 190, effects: '-1 Esq/-1 Bloq' }, ],
   bonuses: { pasivos: ['+2 Esq', '+1 ContrAtq', '+2 7º Sent', '+10 Dmg Salto/VelLuz/Embestir', '+1 Percep'], activos: ['+4 Int Div', '+4 Ayuda (aliados)', 'UltSuspiro 25% PV', 'Armadura Divina'], },
@@ -88,7 +90,8 @@ const initialPlayer2Data = {
     comboVelocidadLuzUsedThisCombat: false,
     dobleSaltoUsedThisCombat: false,
     arrojarUsedThisCombat: false,
-    furiaUsedThisCombat: false, // Nueva propiedad para Furia
+    furiaUsedThisCombat: false,
+    apresarUsedThisCombat: false, // Nueva propiedad para Apresar
   },
   defenseRanges: {
     esquivar: [10, 20],
@@ -96,13 +99,13 @@ const initialPlayer2Data = {
     contraatacar: [14, 20],
   },
   actions: {
-    golpe: 60, // Daño base para Furia
+    golpe: 60,
     llave: 60,
     salto: 70,
     velocidad_luz: 50,
     embestir: 60,
     cargar: 80,
-    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' }, // Usado por la nueva acción Apresar para el daño
     destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
@@ -118,7 +121,8 @@ const initialPlayer2Data = {
     combo_velocidad_luz: true,
     doble_salto: true,
     arrojar: true,
-    furia: true, // Nueva acción Furia
+    furia: true,
+    apresar: true, // Nueva acción Apresar
   },
   powers: [ { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' }, { id: 'S002', name: 'Dragón Volador', cost: 50, type: ['R', 'G'], damage: 70 }, { id: 'S003', name: 'Rozan Ryuu Hi Shou', cost: 100, type: ['R', 'G'], damage: 100, details: 'Weak Point on Counter' }, { id: 'S004', name: 'Cien Dragones de Rozan', cost: 200, type: ['RB', 'G'], damage: 160, effects: '-3 Bloquear' }, { id: 'S005', name: 'Último Dragón', cost: 200, type: ['LL'], damage: 200, details: 'Self-dmg 120, 1 use' }, { id: 'S006', name: 'Excalibur', cost: 100, type: ['R', 'RArm', 'M'], damage: 100, details: 'Ignore Def Bonus, Destroys Armor on 1-2' }, ],
   bonuses: { pasivos: ['+1 Percep', '+2 Bloq (ESC, ARM)', '+10 Dmg Golpe (ARM)'], activos: ['+2 Ayuda (aliados)', '+2 Int Div', 'Valentía del Dragón', 'Armadura Divina'], flags: ['ESC', 'ARM'] },
@@ -139,7 +143,7 @@ const atraparFollowupOptions = [
 // Helper function to check concentration requirements
 const getActionConcentrationRequirement = (actionName) => {
     const level1Actions = ['velocidad_luz', 'salto', 'combo', 'engaño', 'lanzamientos_sucesivos'];
-    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia']; // Añadido furia
+    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia', 'apresar']; // Añadido apresar
 
     if (level2Actions.includes(actionName)) return 2;
     if (level1Actions.includes(actionName)) return 1;
@@ -153,14 +157,13 @@ function App() {
   const [currentPlayerId, setCurrentPlayerId] = useState(initialPlayer1Data.id);
   const [actionState, setActionState] = useState({
     active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null,
-    currentHit: 0, // Para Arrojar, Furia
-    totalHits: 0,  // Para Arrojar, Furia
-    baseDamagePerHit: 0, // Para Arrojar, Furia (Furia usa attacker.actions.golpe)
-    blockDamagePA: 0,    // Para Arrojar, Furia
-    hitsLandedThisTurn: 0, // Para Arrojar (cuantos golpes conectan en la secuencia)
-    damageDealtThisTurn: 0, // Para Arrojar (daño total de la acción Arrojar)
-    // Específico para Furia:
-    furiaHitsLandedInSequence: 0, // Contador de golpes de Furia que han conectado en la secuencia actual
+    currentHit: 0,
+    totalHits: 0,
+    baseDamagePerHit: 0,
+    blockDamagePA: 0,
+    hitsLandedThisTurn: 0,
+    damageDealtThisTurn: 0,
+    furiaHitsLandedInSequence: 0,
   });
   const [gameLog, setGameLog] = useState([]);
   const [arenaEvent, setArenaEvent] = useState(null);
@@ -212,7 +215,7 @@ function App() {
             logMessage(`¡Armadura rota por daño! ${overflowDamage} daño excedente.`);
             damageToPv += overflowDamage;
         }
-        actualDamageApplied += damageToPv; // Sumar daño a PV (original + overflow)
+        actualDamageApplied += damageToPv;
         logMessage(`${targetData.name} recibe ${damageToPv} daño a PV y ${actualPaDamage} daño a PA.`);
     }
 
@@ -247,7 +250,8 @@ function App() {
         playerStats.comboVelocidadLuzUsedThisCombat = false;
         playerStats.dobleSaltoUsedThisCombat = false;
         playerStats.arrojarUsedThisCombat = false;
-        playerStats.furiaUsedThisCombat = false; // Resetear Furia
+        playerStats.furiaUsedThisCombat = false;
+        playerStats.apresarUsedThisCombat = false; // Resetear Apresar
         playerStats.fortalezaUsedThisCombat = false;
         playerStats.agilidadUsedThisCombat = false;
         playerStats.destrezaUsedThisCombat = false;
@@ -455,7 +459,7 @@ function App() {
         return;
     }
 
-    const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'lanzamientos_sucesivos', 'resistencia'].includes(actionName);
+    const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'lanzamientos_sucesivos', 'resistencia', 'apresar'].includes(actionName);
     if (isAlternationAction && attacker.stats.lastActionType === actionName) {
         logMessage(`¡Regla de Alternancia! No se puede usar ${actionName.replace(/_/g, ' ')} dos veces seguidas.`);
         setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡No puedes usar ${actionName.replace(/_/g, ' ')} consecutivamente!` });
@@ -508,7 +512,71 @@ function App() {
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
         return;
     }
-    // --- Furia Action ---
+    // --- Apresar Action ---
+    else if (actionName === 'apresar') {
+        logMessage(`${attacker.name} intenta Apresar a ${defender.name}!`);
+        if (attacker.stats.apresarUsedThisCombat) {
+            logMessage(`¡${attacker.name} ya usó Apresar en este combate!`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Apresar solo se puede usar una vez por combate!` });
+            restoreConcentrationIfNeeded();
+            return;
+        }
+        setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, apresarUsedThisCombat: true, lastActionType: 'apresar' } }));
+
+        const numberOfDice = 5;
+        const rolls = [];
+        let oddRollsCount = 0;
+        for (let i = 0; i < numberOfDice; i++) {
+            const roll = rollD20();
+            rolls.push(roll);
+            if (roll % 2 !== 0) {
+                oddRollsCount++;
+            }
+        }
+        logMessage(`${attacker.name} lanza ${numberOfDice} dados para Apresar: ${rolls.join(', ')}.`);
+        logMessage(`Resultados impares: ${oddRollsCount}.`);
+
+        let gameOverByApresar = false;
+        if (oddRollsCount > 0) {
+            const damagePerImpar = attacker.actions.presa?.damagePerHit || 15; // Usar daño de la acción 'presa'
+            const totalDamage = oddRollsCount * damagePerImpar;
+            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PV (${oddRollsCount} x ${damagePerImpar}).`);
+            const { gameOver } = applyDamage(defender.id, totalDamage, 'directPV');
+            gameOverByApresar = gameOver;
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Apresar',
+                attackerName: attacker.name,
+                defenderName: defender.name,
+                rolls: rolls,
+                oddCount: oddRollsCount,
+                damage: totalDamage,
+                message: `${attacker.name} apresa a ${defender.name}! ${oddRollsCount} de ${numberOfDice} dados fueron impares (${rolls.join(', ')}), infligiendo ${totalDamage} daño directo a PV.`
+            });
+        } else {
+            logMessage(`${attacker.name} no obtuvo resultados impares. ¡Apresar no hace daño!`);
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Apresar',
+                attackerName: attacker.name,
+                defenderName: defender.name,
+                rolls: rolls,
+                oddCount: oddRollsCount,
+                outcome: 'failure',
+                message: `${attacker.name} intenta Apresar, pero no obtiene resultados impares (${rolls.join(', ')}). ¡Sin daño!`
+            });
+        }
+
+        if (!gameOverByApresar) {
+            setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        }
+        return;
+    }
     else if (actionName === 'furia') {
         logMessage(`${attacker.name} desata su ¡Furia!`);
         if (attacker.stats.furiaUsedThisCombat) {
@@ -528,11 +596,11 @@ function App() {
             stage: 'awaiting_defense',
             currentHit: 1,
             totalHits: 3,
-            baseDamagePerHit: attacker.actions.golpe || 0, // Daño del golpe del atacante
+            baseDamagePerHit: attacker.actions.golpe || 0,
             blockDamagePA: 10,
             allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
-            defenseBonuses: {}, // Sin penalización inicial
-            furiaHitsLandedInSequence: 0, // Reiniciar contador de golpes de Furia
+            defenseBonuses: {},
+            furiaHitsLandedInSequence: 0,
         });
         return;
     }
@@ -597,17 +665,16 @@ function App() {
         setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, comboVelocidadLuzUsedThisCombat: true } }));
 
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Combo Vel. Luz - Golpe 1', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el primer golpe del combo a velocidad luz!` });
-        setActionState(prev => ({ // Usar prev para mantener otros estados de actionState si existen
+        setActionState(prev => ({
             ...prev,
             active: true,
             type: 'ComboVelocidadLuz',
             attackerId: attacker.id,
             defenderId: defender.id,
             stage: 'awaiting_defense',
-            currentComboHit: 1, // Específico para este combo
+            currentComboHit: 1,
             allowedDefenses: ['esquivar', 'bloquear'],
-            // defenseBonuses para ComboVelocidadLuz se definen en handleDefenseSelection
-            furiaHitsLandedInSequence: 0, // Asegurar que se resetea/no interfiere
+            furiaHitsLandedInSequence: 0,
         }));
         return;
     }
@@ -640,7 +707,7 @@ function App() {
             stage: 'awaiting_defense',
             allowedDefenses: allowedDefensesForAction,
             defenseBonuses: defenseBonusesForAction,
-            furiaHitsLandedInSequence: 0, // Resetear para acciones que no son Furia
+            furiaHitsLandedInSequence: 0,
         }));
         return;
     } else if (actionName === 'llave') {
@@ -688,18 +755,38 @@ function App() {
         return;
     }
     else if (actionName === 'presa' || actionName === 'destrozar') {
-        const isPresa = actionName === 'presa'; const damageTarget = isPresa ? 'PV' : 'PA'; const damageType = isPresa ? 'directPV' : 'directPA'; logMessage(`${attacker.name} intenta ${actionName} contra ${defender.name}!`);
-        if (!isPresa && defender.stats.currentPA <= 0) { logMessage(`No se puede usar Destrozar, la armadura de ${defender.name} ya está rota!`); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Destrozar', outcome: 'no_armor', message: `¡La armadura de ${defender.name} ya está rota!` }); return; }
+        // Esta es la acción original "Presa" y "Destrozar", no la nueva "Apresar"
+        const isPresaOriginal = actionName === 'presa';
+        const damageTarget = isPresaOriginal ? 'PV' : 'PA';
+        const damageType = isPresaOriginal ? 'directPV' : 'directPA';
+        logMessage(`${attacker.name} intenta ${actionName} contra ${defender.name}!`);
+        if (!isPresaOriginal && defender.stats.currentPA <= 0) { logMessage(`No se puede usar Destrozar, la armadura de ${defender.name} ya está rota!`); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Destrozar', outcome: 'no_armor', message: `¡La armadura de ${defender.name} ya está rota!` }); return; }
+
         let totalDamageAccumulated = 0, successfulHits = 0, successfulRolls = [], lastRoll = null, isGameOverByAction = false;
-        const maxHits = attacker.actions[actionName]?.maxHits || 3; const damagePerHit = attacker.actions[actionName]?.damagePerHit || 15;
-        for (let i = 0; i < maxHits; i++) { const roll = rollD20(); lastRoll = roll; const isOdd = roll % 2 !== 0; if (isOdd) { successfulHits++; totalDamageAccumulated += damagePerHit; successfulRolls.push(roll); logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño ${damageTarget} (Total: ${totalDamageAccumulated})`); } else { logMessage(`Tirada ${i + 1}: ${roll} (Par!) - Intento ${i+1} de ${actionName} fallido.`); } } logMessage(`Intentos de ${actionName} finalizados. Golpes exitosos: ${successfulHits}`);
+        const maxHits = attacker.actions[actionName]?.maxHits || 3;
+        const damagePerHit = attacker.actions[actionName]?.damagePerHit || 15;
+
+        for (let i = 0; i < maxHits; i++) {
+            const roll = rollD20(); lastRoll = roll;
+            const isOdd = roll % 2 !== 0;
+            if (isOdd) {
+                successfulHits++; totalDamageAccumulated += damagePerHit; successfulRolls.push(roll);
+                logMessage(`Tirada ${i + 1}: ${roll} (Impar!) - +${damagePerHit} Daño ${damageTarget} (Total: ${totalDamageAccumulated})`);
+            } else {
+                logMessage(`Tirada ${i + 1}: ${roll} (Par!) - Intento ${i+1} de ${actionName} fallido.`);
+            }
+        }
+        logMessage(`Intentos de ${actionName} finalizados. Golpes exitosos: ${successfulHits}`);
+
         if (totalDamageAccumulated > 0) {
             logMessage(`Daño total de ${actionName}: ${totalDamageAccumulated} directo a ${damageTarget}.`);
             const { gameOver } = applyDamage(defender.id, totalDamageAccumulated, damageType);
             isGameOverByAction = gameOver;
             setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: actionName.charAt(0).toUpperCase() + actionName.slice(1), attackerName: attacker.name, defenderName: defender.name, damage: totalDamageAccumulated, hits: successfulHits, successfulRolls: successfulRolls, message: `${attacker.name} asesta ${successfulHits} golpes (Tiradas: ${successfulRolls.join(', ')}). ${defender.name} recibe ${totalDamageAccumulated} daño a ${damageTarget}.` });
+        } else {
+            logMessage(`${actionName} no hizo daño.`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: actionName.charAt(0).toUpperCase() + actionName.slice(1), attackerName: attacker.name, defenderName: defender.name, outcome: 'failed', message: `${attacker.name} falla ${actionName} (Última Tirada: ${lastRoll})` });
         }
-        else { logMessage(`${actionName} no hizo daño.`); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: actionName.charAt(0).toUpperCase() + actionName.slice(1), attackerName: attacker.name, defenderName: defender.name, outcome: 'failed', message: `${attacker.name} falla ${actionName} (Última Tirada: ${lastRoll})` }); }
 
         if (!isGameOverByAction) {
             setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionName } }));
@@ -851,7 +938,7 @@ function App() {
         // Para acciones multi-hit como Arrojar o Furia, si la defensa es inválida, el golpe conecta automáticamente.
         if (actionType === 'Arrojar' || actionType === 'Furia') {
             logMessage(`Ataque de ${actionType} #${actionState.currentHit} conecta debido a defensa inválida.`);
-            const damageToApply = actionType === 'Furia' ? actionState.baseDamagePerHit : actionState.baseDamagePerHit; // Furia usa su propio baseDamagePerHit
+            const damageToApply = actionState.baseDamagePerHit;
             const { gameOver: hitGameOver, actualDamageDealt } = applyDamage(defenderId, damageToApply);
 
             let updatedActionState = { ...actionState };
@@ -864,7 +951,7 @@ function App() {
 
 
             if (hitGameOver || updatedActionState.currentHit >= updatedActionState.totalHits) {
-                const finalActionName = actionType === 'Arrojar' ? 'arrojar' : 'furia';
+                const finalActionName = actionType.toLowerCase();
                 logMessage(`Secuencia de ${actionType} terminada. Total golpes efectivos: ${actionType === 'Arrojar' ? updatedActionState.hitsLandedThisTurn : updatedActionState.furiaHitsLandedInSequence}/${updatedActionState.totalHits}.`);
                 setArenaEvent(prev => ({ ...prev, id: Date.now(), finalMessage: `${attacker.name} finaliza ${actionType}. ${actionType === 'Arrojar' ? updatedActionState.hitsLandedThisTurn : updatedActionState.furiaHitsLandedInSequence} de ${updatedActionState.totalHits} golpes hicieron efecto.`}));
                 setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: finalActionName } }));
@@ -877,15 +964,17 @@ function App() {
             } else { // Siguiente golpe de Arrojar o Furia
                 updatedActionState.currentHit += 1;
                 updatedActionState.stage = 'awaiting_defense';
-                if (actionType === 'Furia') { // Actualizar penalizadores para el siguiente golpe de Furia
-                    if (updatedActionState.furiaHitsLandedInSequence === 1) {
-                        updatedActionState.defenseBonuses = { esquivar: 2, bloquear: 2 }; // -2
-                    } else if (updatedActionState.furiaHitsLandedInSequence >= 2) {
-                        updatedActionState.defenseBonuses = { esquivar: 4, bloquear: 4 }; // -4
-                    }
+                let defenseModText = "";
+                if (actionType === 'Furia') {
+                    let penalty = 0;
+                    if (updatedActionState.furiaHitsLandedInSequence === 1) penalty = 2;
+                    else if (updatedActionState.furiaHitsLandedInSequence >= 2) penalty = 4;
+                    updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty }; // Solo afecta esquivar y bloquear
+                     if (penalty > 0) defenseModText = `(Defensa rival: Esq/Bloq -${penalty})`;
+                } else if (actionType === 'Arrojar') {
+                     defenseModText = `(${defender.name} tiene +2 Esq, -2 Bloq)`;
                 }
                 setActionState(updatedActionState);
-                const defenseModText = actionType === 'Furia' ? `(Defensa rival: Esq/Bloq -${updatedActionState.defenseBonuses.esquivar || 0})` : `(${defender.name} tiene +2 Esq, -2 Bloq)`;
                 setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `${actionType} - Ataque ${updatedActionState.currentHit}/${updatedActionState.totalHits}`, attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} continúa ${actionType === 'Furia' ? 'su Furia' : 'arrojando objetos'}! ${defenseModText}` });
             }
             return;
@@ -905,14 +994,8 @@ function App() {
     else if (defenseType === 'esquivar_agilidad' && defender.stats.agilidadAvailable) { logMessage(`¡${defender.name} usa Agilidad (+3 Esquivar)!`); setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, agilidadAvailable: false } })); defenseSpecificBonus = 3; }
     else if (defenseType === 'contraatacar_destreza' && defender.stats.destrezaAvailable) { logMessage(`¡${defender.name} usa Destreza (+2 Contraatacar)!`); setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, destrezaAvailable: false } })); defenseSpecificBonus = 2; }
 
+    // El penalizador de la acción del atacante (ej. Furia, Arrojar)
     let actionDefenseModifier = actionState.defenseBonuses?.[baseDefenseType] || 0;
-    if (actionType === 'Furia') { // Furia aplica penalizadores basados en golpes previos
-        if (actionState.furiaHitsLandedInSequence === 1) actionDefenseModifier = 2; // -2
-        else if (actionState.furiaHitsLandedInSequence >= 2) actionDefenseModifier = 4; // -4
-        // Solo para esquivar y bloquear
-        if (baseDefenseType !== 'esquivar' && baseDefenseType !== 'bloquear') actionDefenseModifier = 0;
-    }
-
 
     const finalRequiredRollAdjustment = actionDefenseModifier - defenseSpecificBonus;
 
@@ -922,7 +1005,7 @@ function App() {
 
     const actionKey = actionType.toLowerCase().replace('_opcion', '_op').replace('vel_luz', 'velocidad_luz');
     if (actionType === 'Arrojar') baseDamage = actionState.baseDamagePerHit;
-    else if (actionType === 'Furia') baseDamage = actionState.baseDamagePerHit; // Ya se estableció como attacker.actions.golpe
+    else if (actionType === 'Furia') baseDamage = actionState.baseDamagePerHit;
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_1') baseDamage = 20;
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') baseDamage = 50;
     else if (actionType === 'Salto') baseDamage = attacker.actions.salto || 70;
@@ -953,7 +1036,7 @@ function App() {
             if (roll >= targetMin && roll <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'blocked';
                 if (actionType === 'Arrojar') damageToDefenderPA = actionState.blockDamagePA;
-                else if (actionType === 'Furia') damageToDefenderPA = actionState.blockDamagePA; // 10 PA por bloqueo de Furia
+                else if (actionType === 'Furia') damageToDefenderPA = actionState.blockDamagePA;
                 else if (actionType === 'Golpe' || actionType === 'Velocidad_luz' || actionType === 'ComboVelocidadLuz') damageToDefenderPA = 10;
                 else if (actionType === 'Lanzar_obj' || actionType === 'Embestir' || actionType === 'Cargar' || actionType === 'Salto') damageToDefenderPA = 20;
                 else if (actionType === 'Atrapar_Opcion2') damageToDefenderPA = actionState.blockDamagePA || 20;
@@ -963,11 +1046,14 @@ function App() {
         }
     } else if (baseDefenseType === 'contraatacar') {
          let [min, max] = defender.defenseRanges.contraatacar;
+         // Contraataque no es afectado por penalizadores de Furia (actionDefenseModifier será 0 si baseDefenseType es contraatacar y actionType es Furia)
+         const contraataqueRollAdjustment = (actionType === 'Furia' ? 0 : actionDefenseModifier) - defenseSpecificBonus;
+
          if (actionType === 'Atrapar_Opcion2' || actionType === 'Atrapar_Opcion7' || actionType === 'DobleSalto' || actionType === 'Velocidad_luz' || actionType === 'ComboVelocidadLuz') {
             rollOutcome = 'invalid'; damageToDefender = baseDamage; targetMin = null; targetMax = null;
             logMessage(`¡Contraataque inválido contra ${actionType}! Impacto directo.`);
          } else {
-            targetMin = Math.min(21, Math.max(1, min + finalRequiredRollAdjustment)); targetMax = max; // Contraataque no afectado por penalizadores de Furia
+            targetMin = Math.min(21, Math.max(1, min + contraataqueRollAdjustment)); targetMax = max;
             if (roll >= targetMin && roll <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'countered';
                 damageToAttacker = Math.floor((defender.actions.golpe || 30) / 2);
@@ -1029,9 +1115,7 @@ function App() {
                 updatedActionState.damageDealtThisTurn += damageResultDefender.actualDamageDealt;
             }
         } else if (actionType === 'Furia') {
-            // Un golpe de Furia "conecta" si la defensa falla o es inválida, o si un contraataque falla.
-            // No contamos el daño de bloqueo como un "hit" para el propósito de aumentar el penalizador.
-            if (rollOutcome === 'failure' || rollOutcome === 'invalid' || (rollOutcome === 'countered' && damageToDefender > 0 /*contraataque falló y el golpe de furia conectó*/)) {
+            if (rollOutcome === 'failure' || rollOutcome === 'invalid' || (rollOutcome === 'countered' && damageToDefender > 0 )) {
                 updatedActionState.furiaHitsLandedInSequence++;
             }
         }
@@ -1062,10 +1146,10 @@ function App() {
                 let penalty = 0;
                 if (updatedActionState.furiaHitsLandedInSequence === 1) penalty = 2;
                 else if (updatedActionState.furiaHitsLandedInSequence >= 2) penalty = 4;
-                updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty };
-                if (penalty > 0) defenseModText = `(Defensa rival: Esq/Bloq -${penalty})`;
+                updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty }; // Solo afecta esquivar y bloquear
+                 if (penalty > 0) defenseModText = `(Defensa rival: Esq/Bloq -${penalty})`;
             } else if (actionType === 'Arrojar') {
-                defenseModText = `(${defender.name} tiene +2 Esq, -2 Bloq)`;
+                 defenseModText = `(${defender.name} tiene +2 Esq, -2 Bloq)`;
             }
 
             setActionState(updatedActionState);
@@ -1074,7 +1158,6 @@ function App() {
         return;
     }
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_1') {
-        // No finalizar turno aquí, esperar parte 2
         if (!isGameOverByThisHit) {
             logMessage("--- Engaño: Preparando Ataque Real ---");
             setActionState(prevState => ({ ...prevState, stage: 'awaiting_defense_part_2', allowedDefenses: ['bloquear'], defenseBonuses: { bloquear: 3 } }));
@@ -1084,9 +1167,9 @@ function App() {
     }
     else if (actionType === 'Combo' || actionType === 'ComboVelocidadLuz') {
         const isComboVel = actionType === 'ComboVelocidadLuz';
-        const currentComboHit = actionState.currentComboHit || actionState.currentComboHit || 1; // currentComboHit para ComboVel, currentHit para Combo normal
+        const currentComboHit = actionState.currentComboHit || actionState.currentHit || 1; // Usar currentHit para Combo normal, currentComboHit para ComboVelocidadLuz
 
-        if (defenseSuccessful || currentComboHit >= (isComboVel ? 3 : 3) ) { // Combo termina si defensa es exitosa o se completan los 3 golpes
+        if (defenseSuccessful || currentComboHit >= 3 ) {
             let finalComboMessage = "";
             if (defenseSuccessful) { finalComboMessage = `¡${defender.name} detiene el ${isComboVel ? 'Combo a Velocidad Luz' : 'Combo'} en el golpe #${currentComboHit}!`; }
             else { finalComboMessage = `¡${attacker.name} completa el ${isComboVel ? 'Combo a Velocidad Luz' : 'Combo'} de 3 golpes!`; }
@@ -1094,18 +1177,18 @@ function App() {
             setArenaEvent({ id: Date.now() + 1, type: 'action_effect', actionName: `Fin ${isComboVel ? 'Combo Vel. Luz' : 'Combo'}`, message: finalComboMessage });
 
             setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: isComboVel ? 'combo_velocidad_luz' : 'combo' } }));
-            setActionState(prev => ({ ...prev, active: false, type: null, stage: null, currentComboHit: 0, currentHit: 0 })); // Resetear ambos contadores
+            setActionState(prev => ({ ...prev, active: false, type: null, stage: null, currentComboHit: 0, currentHit: 0 }));
             const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
             setCurrentPlayerId(nextPlayerId);
             logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
-        } else { // Combo continúa
+        } else {
             const nextHit = currentComboHit + 1;
             let nextBonuses = {};
             let messagePenalty = "";
             if (isComboVel) {
                 nextBonuses = { esquivar: 4, bloquear: 6 };
                 messagePenalty = "(Esq -4, Bloq -6)";
-            } else { // Combo Normal
+            } else {
                 const penalty = nextHit === 2 ? 2 : 4;
                 nextBonuses = { esquivar: penalty, bloquear: penalty, contraatacar: penalty };
                 messagePenalty = `(Defensa -${penalty})`;
@@ -1116,7 +1199,7 @@ function App() {
                 ...prevState,
                 stage: 'awaiting_defense',
                 [isComboVel ? 'currentComboHit' : 'currentHit']: nextHit,
-                currentDefensePenalty: !isComboVel ? (nextHit === 2 ? 2 : 4) : prevState.currentDefensePenalty, // Solo para Combo normal
+                currentDefensePenalty: !isComboVel ? (nextHit === 2 ? 2 : 4) : prevState.currentDefensePenalty,
                 defenseBonuses: nextBonuses
             }));
             setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `${isComboVel ? 'Combo Vel. Luz' : 'Combo'} - Golpe ${nextHit}`, attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el golpe #${nextHit}! ${messagePenalty}` });
@@ -1124,10 +1207,8 @@ function App() {
         return;
     }
 
-    // --- Para todas las demás acciones de un solo golpe o que finalizan aquí ---
     if (!isGameOverByThisHit) {
         const actionJustFinished = actionState.type;
-        // Normalizar nombres de acción para el historial
         let actionTypeForHistory = actionJustFinished.toLowerCase();
         if (actionTypeForHistory.startsWith('atrapar_')) actionTypeForHistory = 'atrapar';
         else if (actionTypeForHistory === 'velocidadluz' || actionTypeForHistory === 'vel_luz') actionTypeForHistory = 'velocidad_luz';
@@ -1136,7 +1217,7 @@ function App() {
 
 
         setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: actionTypeForHistory } }));
-        setActionState(prev => ({ ...prev, active: false, type: null, stage: null, furiaHitsLandedInSequence: 0 })); // Resetear furiaHitsLanded por si acaso
+        setActionState(prev => ({ ...prev, active: false, type: null, stage: null, furiaHitsLandedInSequence: 0 }));
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
         setCurrentPlayerId(nextPlayerId);
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);

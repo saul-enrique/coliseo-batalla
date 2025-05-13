@@ -40,27 +40,38 @@ function PlayerArea({
         let buttonTitle = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
         let buttonText = buttonTitle;
 
-        const isAlternationBlocked = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'resistencia', 'lanzamientos_sucesivos'].includes(actionName) && characterData.stats.lastActionType === actionName;
-        if (isAlternationBlocked) { isDisabled = true; buttonTitle = `No se puede usar ${buttonTitle} consecutivamente`; }
+        // General alternation rule for specific actions
+        const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'resistencia', 'lanzamientos_sucesivos', 'apresar'].includes(actionName);
+        const isAlternationBlocked = isAlternationAction && characterData.stats.lastActionType === actionName;
 
-        if (actionName === 'romper') {
-          const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
-          if (allOpponentPartsMaxBroken) { isDisabled = true; buttonTitle = "Todas las partes del rival están rotas al máximo"; }
-        } else if (['fortaleza', 'agilidad', 'destreza', 'resistencia'].includes(actionName)) {
-            const availableKey = `${actionName}Available`;
-            const usedKey = `${actionName}UsedThisCombat`;
-            if (characterData.stats[availableKey]) { isDisabled = true; buttonTitle = `Bono ${buttonTitle} ya activo`; }
-            else if (characterData.stats[usedKey]) { isDisabled = true; buttonTitle = `${buttonTitle} ya usada este combate`; }
-        } else if (actionName === 'lanzamientos_sucesivos' && characterData.stats.lanzamientosSucesivosUsedThisCombat) {
-          isDisabled = true; buttonTitle = "Lanzamientos Sucesivos ya usado";
-        } else if (actionName === 'combo_velocidad_luz' && characterData.stats.comboVelocidadLuzUsedThisCombat) {
-          isDisabled = true; buttonTitle = "Combo Velocidad Luz ya usado";
-        } else if (actionName === 'doble_salto' && characterData.stats.dobleSaltoUsedThisCombat) {
-          isDisabled = true; buttonTitle = "Doble Salto ya usado este combate";
-        } else if (actionName === 'arrojar' && characterData.stats.arrojarUsedThisCombat) {
-          isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
-        } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) { // Lógica para Furia
-          isDisabled = true; buttonTitle = "Furia ya usada este combate";
+        if (isAlternationBlocked) {
+            isDisabled = true;
+            buttonTitle = `No se puede usar ${buttonTitle} consecutivamente`;
+        }
+
+        // Specific action disabling logic
+        if (!isDisabled) { // Only check further if not already disabled by alternation
+            if (actionName === 'romper') {
+              const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
+              if (allOpponentPartsMaxBroken) { isDisabled = true; buttonTitle = "Todas las partes del rival están rotas al máximo"; }
+            } else if (['fortaleza', 'agilidad', 'destreza', 'resistencia'].includes(actionName)) {
+                const availableKey = `${actionName}Available`;
+                const usedKey = `${actionName}UsedThisCombat`;
+                if (characterData.stats[availableKey]) { isDisabled = true; buttonTitle = `Bono ${buttonTitle} ya activo`; }
+                else if (characterData.stats[usedKey]) { isDisabled = true; buttonTitle = `${buttonTitle} ya usada este combate`; }
+            } else if (actionName === 'lanzamientos_sucesivos' && characterData.stats.lanzamientosSucesivosUsedThisCombat) {
+              isDisabled = true; buttonTitle = "Lanzamientos Sucesivos ya usado";
+            } else if (actionName === 'combo_velocidad_luz' && characterData.stats.comboVelocidadLuzUsedThisCombat) {
+              isDisabled = true; buttonTitle = "Combo Velocidad Luz ya usado";
+            } else if (actionName === 'doble_salto' && characterData.stats.dobleSaltoUsedThisCombat) {
+              isDisabled = true; buttonTitle = "Doble Salto ya usado este combate";
+            } else if (actionName === 'arrojar' && characterData.stats.arrojarUsedThisCombat) {
+              isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
+            } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) {
+              isDisabled = true; buttonTitle = "Furia ya usada este combate";
+            } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) { // Lógica para Apresar
+              isDisabled = true; buttonTitle = "Apresar ya usado este combate";
+            }
         }
 
 
@@ -163,12 +174,12 @@ function PlayerArea({
      } else if (actionState.type === 'Velocidad_luz') {
          defenseModifiersText = "(Bloquear con -6)";
      } else if (actionState.type === 'ComboVelocidadLuz') {
-         defensePrompt = `Defensa vs Combo Vel. Luz (Golpe ${actionState.currentComboHit || actionState.currentHit})`; // currentComboHit es el correcto
+         defensePrompt = `Defensa vs Combo Vel. Luz (Golpe ${actionState.currentComboHit || actionState.currentHit})`;
          defenseModifiersText = "(Esq -4, Bloq -6)";
      } else if (actionState.type === 'Salto') {
         defenseModifiersText = "(Bloquear con -2)";
      } else if (actionState.type === 'Combo') {
-        defensePrompt = `Defensa vs Combo (Golpe ${actionState.currentHit || actionState.currentComboHit})`; // currentHit es el correcto
+        defensePrompt = `Defensa vs Combo (Golpe ${actionState.currentHit || actionState.currentComboHit})`;
         if (actionState.currentDefensePenalty > 0) defenseModifiersText = `(Penaliz. Def. -${actionState.currentDefensePenalty})`;
      }
 
