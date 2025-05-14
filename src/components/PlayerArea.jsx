@@ -1,4 +1,4 @@
-// PlayerArea.jsx MODIFICADO
+// PlayerArea.jsx MODIFICADO (Corrección en botón de Concentración)
 
 import React from 'react';
 import StatBar from './StatBar';
@@ -26,7 +26,8 @@ function PlayerArea({
         getActionConcentrationRequirement(actionName) === 0 &&
         actionValue &&
         actionName !== 'concentracion' &&
-        actionName !== 'alcanzar_septimo_sentido' // Excluir de este grupo general
+        actionName !== 'alcanzar_septimo_sentido' &&
+        actionName !== 'golpear_puntos_vitales'
       );
 
     const level1Actions = Object.entries(characterData.actions)
@@ -119,24 +120,57 @@ function PlayerArea({
                    key="concentracion-lvl0"
                    className="action-button"
                    onClick={() => handleActionInitiate('concentracion')}
-                   disabled={characterData.stats.lastActionType === 'concentracion'}
-                   title={characterData.stats.lastActionType === 'concentracion' ? "No puedes concentrarte consecutivamente" : "Concentrarse (Nivel 1)"}
+                   disabled={characterData.stats.concentrationLevel >= 2} // Deshabilitar si ya está en Nivel 2 (App.jsx también lo previene)
+                   title={characterData.stats.concentrationLevel >=2 ? "Ya estás en Concentración Máxima" : "Concentrarse (Nivel 1)"}
                  >
                    Concentración
                  </button>
                )}
-              {characterData.actions.alcanzar_septimo_sentido && 
-               !characterData.stats.septimoSentidoActivo && (
+
+              {/* Botón Golpear Puntos Vitales */}
+              {characterData.actions.golpear_puntos_vitales && (
                  <button
-                   key="alcanzar_septimo_sentido"
-                   className="action-button" // Podrías añadir una clase específica si quieres un estilo diferente
-                   onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
-                   disabled={characterData.stats.septimoSentidoIntentado}
-                   title={characterData.stats.septimoSentidoIntentado ? "Ya intentaste alcanzar el Séptimo Sentido este combate" : "Intentar alcanzar el Séptimo Sentido"}
+                   key="golpear_puntos_vitales"
+                   className="action-button"
+                   onClick={() => handleActionInitiate('golpear_puntos_vitales')}
+                   disabled={
+                     characterData.stats.puntosVitalesUsadoPorAtacante ||
+                     (opponentData && opponentData.stats.septimoSentidoActivo) ||
+                     (opponentData && opponentData.stats.puntosVitalesGolpeados)
+                   }
+                   title={
+                     characterData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
+                     (opponentData && opponentData.stats.septimoSentidoActivo) ? "El rival está protegido por su Séptimo Sentido" :
+                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" :
+                     "Golpear Puntos Vitales del Rival"
+                   }
                  >
-                   Alcanzar 7º Sentido {characterData.stats.septimoSentidoIntentado ? '(Intentado)' : ''}
+                   Puntos Vitales {characterData.stats.puntosVitalesUsadoPorAtacante ? '(Usada)' : ''}
                  </button>
                )}
+
+              {/* Botón Alcanzar Séptimo Sentido / Recuperarse */}
+              {characterData.actions.alcanzar_septimo_sentido &&
+               (!characterData.stats.septimoSentidoActivo || characterData.stats.puntosVitalesGolpeados) &&
+                 <button
+                   key="alcanzar_septimo_sentido_o_recuperar"
+                   className="action-button"
+                   onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
+                   disabled={
+                       !characterData.stats.puntosVitalesGolpeados && 
+                       characterData.stats.septimoSentidoIntentado && 
+                       !characterData.stats.septimoSentidoActivo
+                   }
+                   title={
+                     characterData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" :
+                     (characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? "Ya intentaste alcanzar el 7º Sentido y fallaste este combate" :
+                     "Intentar alcanzar el Séptimo Sentido"
+                   }
+                 >
+                   {characterData.stats.puntosVitalesGolpeados ? "Recuperarse (7ºS)" : "Alcanzar 7º Sentido"}
+                   {(!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? ' (Intentado)' : ''}
+                 </button>
+               }
             </div>
           </>
         )}
@@ -153,8 +187,8 @@ function PlayerArea({
                         key="concentracion-again"
                         className="action-button concentrate-again-button"
                         onClick={() => handleActionInitiate('concentracion')}
-                        disabled={false}
-                        title={"Concentrarse de Nuevo (Nivel 2)"}
+                        disabled={characterData.stats.concentrationLevel >= 2} // Deshabilitar si ya está en Nivel 2
+                        title={characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" : "Concentrarse de Nuevo (Nivel 2)"}
                     >
                         Concentrarse de Nuevo
                     </button>
@@ -169,6 +203,7 @@ function PlayerArea({
             <div className="action-buttons">
               {renderButtons(level2Actions, 2)}
             </div>
+            {/* No hay botón para concentrarse desde Nivel 2 a Nivel 3 */}
           </>
         )}
       </div>
@@ -322,7 +357,8 @@ function PlayerArea({
             {characterData.stats.agilidadAvailable && <div className="status-indicator agilidad">Agilidad (+3 Esq) Lista</div>}
             {characterData.stats.destrezaAvailable && <div className="status-indicator destreza">Destreza (+2 ContrAtq) Lista</div>}
             {characterData.stats.resistenciaAvailable && <div className="status-indicator resistencia">Resistencia (+2 Ataque Llave/Lanz.) Lista</div>}
-            {characterData.stats.septimoSentidoActivo && <div className="status-indicator septimo-sentido">¡SÉPTIMO SENTIDO ALCANZADO!</div>} {/* NUEVO INDICADOR */}
+            {characterData.stats.septimoSentidoActivo && <div className="status-indicator septimo-sentido">¡SÉPTIMO SENTIDO ALCANZADO!</div>}
+            {characterData.stats.puntosVitalesGolpeados && <div className="status-indicator puntos-vitales-afectado">Puntos Vitales Afectados</div>}
         </div>
       </div>
 
