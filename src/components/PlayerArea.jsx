@@ -1,3 +1,5 @@
+// PlayerArea.jsx MODIFICADO
+
 import React from 'react';
 import StatBar from './StatBar';
 import './PlayerArea.css'; // Ensure CSS path is correct
@@ -21,7 +23,10 @@ function PlayerArea({
 
     const level0Actions = Object.entries(characterData.actions)
       .filter(([actionName, actionValue]) =>
-        getActionConcentrationRequirement(actionName) === 0 && actionValue && actionName !== 'concentracion'
+        getActionConcentrationRequirement(actionName) === 0 &&
+        actionValue &&
+        actionName !== 'concentracion' &&
+        actionName !== 'alcanzar_septimo_sentido' // Excluir de este grupo general
       );
 
     const level1Actions = Object.entries(characterData.actions)
@@ -40,7 +45,6 @@ function PlayerArea({
         let buttonTitle = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
         let buttonText = buttonTitle;
 
-        // General alternation rule for specific actions
         const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'resistencia', 'lanzamientos_sucesivos', 'apresar'].includes(actionName);
         const isAlternationBlocked = isAlternationAction && characterData.stats.lastActionType === actionName;
 
@@ -49,8 +53,7 @@ function PlayerArea({
             buttonTitle = `No se puede usar ${buttonTitle} consecutivamente`;
         }
 
-        // Specific action disabling logic
-        if (!isDisabled) { // Only check further if not already disabled by alternation
+        if (!isDisabled) {
             if (actionName === 'romper') {
               const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
               if (allOpponentPartsMaxBroken) { isDisabled = true; buttonTitle = "Todas las partes del rival están rotas al máximo"; }
@@ -71,7 +74,7 @@ function PlayerArea({
               isDisabled = true; buttonTitle = "Furia ya usada este combate";
             } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) {
               isDisabled = true; buttonTitle = "Apresar ya usado este combate";
-            } else if (actionName === 'quebrar') { // Lógica para Quebrar
+            } else if (actionName === 'quebrar') {
                 if (characterData.stats.quebrarUsedThisCombat) {
                     isDisabled = true; buttonTitle = "Quebrar ya usado este combate";
                 } else if (opponentData && opponentData.stats.currentPA <= 0) {
@@ -93,7 +96,7 @@ function PlayerArea({
         return (
           <button
             key={`${actionName}-lvl${levelRequired}`}
-            className={`action-button ${levelRequired === 2 ? 'concentrated-action-lvl2' : ''} ${actionName === 'quebrar' ? 'quebrar-button' : ''}`} // Clase específica para Quebrar si se necesita estilo
+            className={`action-button ${levelRequired === 2 ? 'concentrated-action-lvl2' : ''} ${actionName === 'quebrar' ? 'quebrar-button' : ''}`}
             onClick={() => handleActionInitiate(actionName)}
             disabled={isDisabled}
             title={buttonTitle}
@@ -122,6 +125,18 @@ function PlayerArea({
                    Concentración
                  </button>
                )}
+              {characterData.actions.alcanzar_septimo_sentido && 
+               !characterData.stats.septimoSentidoActivo && (
+                 <button
+                   key="alcanzar_septimo_sentido"
+                   className="action-button" // Podrías añadir una clase específica si quieres un estilo diferente
+                   onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
+                   disabled={characterData.stats.septimoSentidoIntentado}
+                   title={characterData.stats.septimoSentidoIntentado ? "Ya intentaste alcanzar el Séptimo Sentido este combate" : "Intentar alcanzar el Séptimo Sentido"}
+                 >
+                   Alcanzar 7º Sentido {characterData.stats.septimoSentidoIntentado ? '(Intentado)' : ''}
+                 </button>
+               )}
             </div>
           </>
         )}
@@ -138,7 +153,7 @@ function PlayerArea({
                         key="concentracion-again"
                         className="action-button concentrate-again-button"
                         onClick={() => handleActionInitiate('concentracion')}
-                        disabled={false} // Siempre se puede intentar concentrar a Nivel 2 desde Nivel 1
+                        disabled={false}
                         title={"Concentrarse de Nuevo (Nivel 2)"}
                     >
                         Concentrarse de Nuevo
@@ -307,6 +322,7 @@ function PlayerArea({
             {characterData.stats.agilidadAvailable && <div className="status-indicator agilidad">Agilidad (+3 Esq) Lista</div>}
             {characterData.stats.destrezaAvailable && <div className="status-indicator destreza">Destreza (+2 ContrAtq) Lista</div>}
             {characterData.stats.resistenciaAvailable && <div className="status-indicator resistencia">Resistencia (+2 Ataque Llave/Lanz.) Lista</div>}
+            {characterData.stats.septimoSentidoActivo && <div className="status-indicator septimo-sentido">¡SÉPTIMO SENTIDO ALCANZADO!</div>} {/* NUEVO INDICADOR */}
         </div>
       </div>
 

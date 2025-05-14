@@ -1,3 +1,5 @@
+// App.jsx MODIFICADO
+
 import './App.css'
 import { useState, useEffect } from 'react'
 import PlayerArea from './components/PlayerArea'
@@ -29,7 +31,9 @@ const initialPlayer1Data = {
     arrojarUsedThisCombat: false,
     furiaUsedThisCombat: false,
     apresarUsedThisCombat: false,
-    quebrarUsedThisCombat: false, // Nueva propiedad para Quebrar
+    quebrarUsedThisCombat: false,
+    septimoSentidoActivo: false, // NUEVO
+    septimoSentidoIntentado: false, // NUEVO
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -44,7 +48,7 @@ const initialPlayer1Data = {
     embestir: 70,
     cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
-    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' }, // Usaremos damagePerHit de destrozar para Quebrar
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
@@ -61,7 +65,8 @@ const initialPlayer1Data = {
     arrojar: true,
     furia: true,
     apresar: true,
-    quebrar: true, // Nueva acción Quebrar
+    quebrar: true,
+    alcanzar_septimo_sentido: true, // NUEVA ACCIÓN
   },
   powers: [ { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' }, { id: 'P002', name: 'Vuelo del Pegaso', cost: 100, type: ['LL'], damage: 100 }, { id: 'P003', name: 'Cometa Pegaso', cost: 200, type: ['R'], damage: 190, effects: '-1 Esq/-1 Bloq' }, ],
   bonuses: { pasivos: ['+2 Esq', '+1 ContrAtq', '+2 7º Sent', '+10 Dmg Salto/VelLuz/Embestir', '+1 Percep'], activos: ['+4 Int Div', '+4 Ayuda (aliados)', 'UltSuspiro 25% PV', 'Armadura Divina'], },
@@ -93,7 +98,9 @@ const initialPlayer2Data = {
     arrojarUsedThisCombat: false,
     furiaUsedThisCombat: false,
     apresarUsedThisCombat: false,
-    quebrarUsedThisCombat: false, // Nueva propiedad para Quebrar
+    quebrarUsedThisCombat: false,
+    septimoSentidoActivo: false, // NUEVO
+    septimoSentidoIntentado: false, // NUEVO
   },
   defenseRanges: {
     esquivar: [10, 20],
@@ -108,7 +115,7 @@ const initialPlayer2Data = {
     embestir: 60,
     cargar: 80,
     presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
-    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' }, // Usaremos damagePerHit de destrozar para Quebrar
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
@@ -125,7 +132,8 @@ const initialPlayer2Data = {
     arrojar: true,
     furia: true,
     apresar: true,
-    quebrar: true, // Nueva acción Quebrar
+    quebrar: true,
+    alcanzar_septimo_sentido: true, // NUEVA ACCIÓN
   },
   powers: [ { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' }, { id: 'S002', name: 'Dragón Volador', cost: 50, type: ['R', 'G'], damage: 70 }, { id: 'S003', name: 'Rozan Ryuu Hi Shou', cost: 100, type: ['R', 'G'], damage: 100, details: 'Weak Point on Counter' }, { id: 'S004', name: 'Cien Dragones de Rozan', cost: 200, type: ['RB', 'G'], damage: 160, effects: '-3 Bloquear' }, { id: 'S005', name: 'Último Dragón', cost: 200, type: ['LL'], damage: 200, details: 'Self-dmg 120, 1 use' }, { id: 'S006', name: 'Excalibur', cost: 100, type: ['R', 'RArm', 'M'], damage: 100, details: 'Ignore Def Bonus, Destroys Armor on 1-2' }, ],
   bonuses: { pasivos: ['+1 Percep', '+2 Bloq (ESC, ARM)', '+10 Dmg Golpe (ARM)'], activos: ['+2 Ayuda (aliados)', '+2 Int Div', 'Valentía del Dragón', 'Armadura Divina'], flags: ['ESC', 'ARM'] },
@@ -146,11 +154,45 @@ const atraparFollowupOptions = [
 // Helper function to check concentration requirements
 const getActionConcentrationRequirement = (actionName) => {
     const level1Actions = ['velocidad_luz', 'salto', 'combo', 'engaño', 'lanzamientos_sucesivos'];
-    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia', 'apresar', 'quebrar']; // Añadido quebrar
+    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia', 'apresar', 'quebrar'];
 
     if (level2Actions.includes(actionName)) return 2;
     if (level1Actions.includes(actionName)) return 1;
     return 0;
+};
+
+const getSeptimoSentidoPowerDamageBonus = (power, attackerStats) => {
+    if (!attackerStats.septimoSentidoActivo || !power || !power.type) {
+        return 0;
+    }
+
+    const types = Array.isArray(power.type) ? power.type : [power.type];
+    let bonuses = [];
+
+    if (types.includes('R')) bonuses.push(30);
+    if (types.includes('RMult')) bonuses.push(10);
+    if (types.includes('RD')) {
+        // Asumiendo que podrías tener una propiedad como power.damageCategory = 'directPV' o 'directPA'
+        // O podrías inferirlo si el poder tiene un efecto específico de daño directo a PV/PA.
+        // Por ahora, asumimos que "RD" que no es directo a PV/PA específicamente recibe +10.
+        // Necesitarías una forma de identificar si el daño RD es directo para aplicar +5.
+        // Ejemplo simple (requiere más info en `power`):
+        if (power.isDirectToPVPA) { // Propiedad hipotética
+            bonuses.push(5);
+        } else {
+            bonuses.push(10);
+        }
+    }
+    if (types.includes('RSD')) bonuses.push(10);
+    if (types.includes('RVid') || types.includes('RArm')) bonuses.push(10);
+    if (types.includes('P')) bonuses.push(10);
+    if (types.includes('LL')) bonuses.push(30);
+
+    if (bonuses.length === 0) return 0;
+    if (bonuses.length === 1) return bonuses[0];
+
+    // "Si un poder cumple 2 o mas atributos se toma el más restrictivo/menor"
+    return Math.min(...bonuses);
 };
 
 
@@ -202,10 +244,6 @@ function App() {
         let overflowDamage = damageAmount - damageToPa;
         if (overflowDamage > 0) {
             logMessage(`¡Armadura rota por daño directo a PA! ${overflowDamage} daño excedente.`);
-            // Según reglas, el daño de Quebrar es solo a PA. Si rompe la armadura, no hay desbordamiento a PV.
-            // Comentamos la siguiente línea para Quebrar, pero la dejamos por si otras acciones directPA sí desbordan.
-            // damageToPv = overflowDamage;
-            // actualDamageApplied += damageToPv;
         }
         logMessage(`${targetData.name} recibe ${damageToPa} daño a PA.`);
     } else { // Daño normal (mitad y mitad)
@@ -220,7 +258,7 @@ function App() {
             logMessage(`¡Armadura rota por daño! ${overflowDamage} daño excedente.`);
             damageToPv += overflowDamage;
         }
-        actualDamageApplied += damageToPv;
+        actualDamageApplied += damageToPv; // Solo el daño a PV se suma aquí, el de PA ya estaba
         logMessage(`${targetData.name} recibe ${damageToPv} daño a PV y ${actualPaDamage} daño a PA.`);
     }
 
@@ -257,7 +295,7 @@ function App() {
         playerStats.arrojarUsedThisCombat = false;
         playerStats.furiaUsedThisCombat = false;
         playerStats.apresarUsedThisCombat = false;
-        playerStats.quebrarUsedThisCombat = false; // Resetear Quebrar
+        playerStats.quebrarUsedThisCombat = false;
         playerStats.fortalezaUsedThisCombat = false;
         playerStats.agilidadUsedThisCombat = false;
         playerStats.destrezaUsedThisCombat = false;
@@ -268,6 +306,8 @@ function App() {
         playerStats.destrezaAvailable = false;
         playerStats.resistenciaAvailable = false;
         playerStats.lastActionType = null;
+        playerStats.septimoSentidoActivo = false; // NUEVO
+        playerStats.septimoSentidoIntentado = false; // NUEVO
         return playerStats;
     };
 
@@ -286,14 +326,25 @@ function App() {
     logMessage(`Resolviendo Llave [Bono Atacante: +${additionalBonus}]...`);
     let attackerRoll = 0, defenderRoll = 0, ties = 0;
     let currentDamage = attacker.actions.llave;
+    if (attacker.stats.septimoSentidoActivo) {
+        currentDamage += 30;
+        logMessage(`(Séptimo Sentido: +30 Daño a Llave)`);
+    }
     let winnerId = null, loserId = null;
     let llaveGameOver = false;
 
     while (ties < 3) {
       const attackerBaseRoll = rollD20();
       const defenderBaseRoll = rollD20();
-      const totalAttackerBonus = 2 + additionalBonus;
+      let totalAttackerBonus = 2 + additionalBonus;
       let totalDefenderBonus = 0;
+
+      if (attacker.stats.septimoSentidoActivo) {
+          totalAttackerBonus += 1;
+      }
+      if (defender.stats.septimoSentidoActivo && attacker.id !== defender.id ) {
+          totalDefenderBonus +=1;
+      }
 
       attackerRoll = attackerBaseRoll + totalAttackerBonus;
       defenderRoll = defenderBaseRoll + totalDefenderBonus;
@@ -343,8 +394,12 @@ function App() {
 
   const resolveSingleLanzamiento = (attacker, defender, throwNumber, baseAttackerBonus = 0) => {
       logMessage(`--- Resolviendo Lanzamiento #${throwNumber} (Bono Base Atacante: +${baseAttackerBonus}) ---`);
-      const baseDamage = 40;
-      let currentDamage = baseDamage;
+      const baseDamageThrow = 40;
+      let currentDamage = baseDamageThrow;
+      if (attacker.stats.septimoSentidoActivo) {
+          currentDamage += 10;
+          logMessage(`(Séptimo Sentido: +10 Daño a este lanzamiento)`);
+      }
       let ties = 0;
       let winnerId = null;
       let loserId = null;
@@ -466,7 +521,6 @@ function App() {
     }
 
     const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'lanzamientos_sucesivos', 'resistencia', 'apresar'].includes(actionName);
-    // Quebrar no está en la lista de alternancia, ya que su uso único por combate es una restricción más fuerte.
     if (isAlternationAction && attacker.stats.lastActionType === actionName) {
         logMessage(`¡Regla de Alternancia! No se puede usar ${actionName.replace(/_/g, ' ')} dos veces seguidas.`);
         setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡No puedes usar ${actionName.replace(/_/g, ' ')} consecutivamente!` });
@@ -493,7 +547,7 @@ function App() {
 
         if (actualPreviousLevel >= 2) {
             logMessage(`Error: ${attacker.name} ya está en el nivel máximo de concentración (Nivel 2) o intentó concentrarse desde Nivel 2.`);
-            restoreConcentrationIfNeeded(); // Devuelve la concentración si se consumió para intentar llegar a Nivel 3
+            restoreConcentrationIfNeeded();
             return;
         }
         const nextLevel = actualPreviousLevel + 1;
@@ -519,24 +573,68 @@ function App() {
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
         return;
     }
-    // --- Quebrar Action ---
+    else if (actionName === 'alcanzar_septimo_sentido') {
+        logMessage(`${attacker.name} intenta alcanzar el ¡Séptimo Sentido!`);
+        if (attacker.stats.septimoSentidoIntentado) {
+            logMessage(`¡${attacker.name} ya intentó alcanzar el Séptimo Sentido en este combate!`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Ya intentaste alcanzar el Séptimo Sentido!` });
+            return;
+        }
+
+        setAttackerData(prev => ({
+            ...prev,
+            stats: { ...prev.stats, septimoSentidoIntentado: true, lastActionType: actionName }
+        }));
+
+        const roll = rollD20();
+        logMessage(`${attacker.name} tira un ${roll} para alcanzar el Séptimo Sentido (Necesita 19 o 20).`);
+
+        if (roll >= 19) {
+            logMessage(`¡ÉXITO! ¡${attacker.name} ha alcanzado el SÉPTIMO SENTIDO! (Tirada: ${roll})`);
+            setAttackerData(prev => ({
+                ...prev,
+                stats: { ...prev.stats, septimoSentidoActivo: true }
+            }));
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Séptimo Sentido Alcanzado',
+                attackerName: attacker.name,
+                roll: roll,
+                message: `¡${attacker.name} alcanza el SÉPTIMO SENTIDO (Tirada: ${roll})! Sus habilidades se potencian.`,
+                outcome: 'success'
+            });
+        } else {
+            logMessage(`¡FALLO! ${attacker.name} no pudo alcanzar el Séptimo Sentido esta vez (Tirada: ${roll}).`);
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Intento de Séptimo Sentido Fallido',
+                attackerName: attacker.name,
+                roll: roll,
+                message: `${attacker.name} no logra alcanzar el Séptimo Sentido (Tirada: ${roll}).`,
+                outcome: 'failure'
+            });
+        }
+
+        setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
+        const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+        setCurrentPlayerId(nextPlayerId);
+        logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        return;
+    }
     else if (actionName === 'quebrar') {
         logMessage(`${attacker.name} intenta Quebrar la armadura de ${defender.name}!`);
         if (attacker.stats.quebrarUsedThisCombat) {
             logMessage(`¡${attacker.name} ya usó Quebrar en este combate!`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Quebrar solo se puede usar una vez por combate!` });
-            restoreConcentrationIfNeeded(); // Importante devolver la concentración si la acción no procede
+            restoreConcentrationIfNeeded();
             return;
         }
         if (defender.stats.currentPA <= 0) {
             logMessage(`La armadura de ${defender.name} ya está destruida. ¡Quebrar no tiene efecto!`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'no_armor', message: `¡La armadura de ${defender.name} ya está rota! Quebrar no tiene efecto.` });
-            restoreConcentrationIfNeeded(); // Devuelve concentración si la acción es inválida
-            // No se marca como usada si no tuvo efecto por armadura ya rota, para no penalizar al jugador
-            // Pero SÍ se consume el turno y la concentración si se intentó.
-            // Decidimos que si la armadura está rota, la acción no se "gasta" y se devuelve la concentración.
-            // Si se quiere que se gaste igual, quitar restoreConcentrationIfNeeded y no pasar turno abajo.
-            // Por ahora, si no hay armadura, no se gasta el uso ni la concentración.
+            restoreConcentrationIfNeeded();
             return;
         }
 
@@ -548,7 +646,7 @@ function App() {
         for (let i = 0; i < numberOfDice; i++) {
             const roll = rollD20();
             rolls.push(roll);
-            if (roll % 2 !== 0) { // Impar
+            if (roll % 2 !== 0) {
                 oddRollsCount++;
             }
         }
@@ -557,10 +655,14 @@ function App() {
 
         let gameOverByQuebrar = false;
         if (oddRollsCount > 0) {
-            const damagePerImpar = attacker.actions.destrozar?.damagePerHit || 15; // Daño de Destrozar
-            const totalDamage = oddRollsCount * damagePerImpar;
-            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PA (${oddRollsCount} impares x ${damagePerImpar} c/u).`);
-            const { gameOver } = applyDamage(defender.id, totalDamage, 'directPA'); // Daño directo a la armadura
+            let damagePerImparQuebrar = attacker.actions.destrozar?.damagePerHit || 15;
+            if (attacker.stats.septimoSentidoActivo) {
+                damagePerImparQuebrar += 5;
+                logMessage(`(Séptimo Sentido: +5 Daño por impacto de Quebrar)`);
+            }
+            const totalDamage = oddRollsCount * damagePerImparQuebrar;
+            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PA (${oddRollsCount} impares x ${damagePerImparQuebrar} c/u).`);
+            const { gameOver } = applyDamage(defender.id, totalDamage, 'directPA');
             gameOverByQuebrar = gameOver;
             setArenaEvent({
                 id: Date.now(),
@@ -596,7 +698,6 @@ function App() {
         }
         return;
     }
-    // --- Apresar Action ---
     else if (actionName === 'apresar') {
         logMessage(`${attacker.name} intenta Apresar a ${defender.name}!`);
         if (attacker.stats.apresarUsedThisCombat) {
@@ -622,9 +723,13 @@ function App() {
 
         let gameOverByApresar = false;
         if (oddRollsCount > 0) {
-            const damagePerImpar = attacker.actions.presa?.damagePerHit || 15; // Usar daño de la acción 'presa'
-            const totalDamage = oddRollsCount * damagePerImpar;
-            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PV (${oddRollsCount} x ${damagePerImpar}).`);
+            let damagePerImparApresar = attacker.actions.presa?.damagePerHit || 15;
+            if (attacker.stats.septimoSentidoActivo) {
+                damagePerImparApresar += 5;
+                logMessage(`(Séptimo Sentido: +5 Daño por impacto de Apresar)`);
+            }
+            const totalDamage = oddRollsCount * damagePerImparApresar;
+            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PV (${oddRollsCount} x ${damagePerImparApresar}).`);
             const { gameOver } = applyDamage(defender.id, totalDamage, 'directPV');
             gameOverByApresar = gameOver;
             setArenaEvent({
@@ -670,6 +775,12 @@ function App() {
             return;
         }
         setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, furiaUsedThisCombat: true } }));
+        
+        let baseDamagePerHitFuria = attacker.actions.golpe || 0;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamagePerHitFuria += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño por golpe de Furia)`);
+        }
 
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Furia - Ataque 1/3', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza el primer golpe de Furia!` });
         setActionState({
@@ -680,7 +791,7 @@ function App() {
             stage: 'awaiting_defense',
             currentHit: 1,
             totalHits: 3,
-            baseDamagePerHit: attacker.actions.golpe || 0,
+            baseDamagePerHit: baseDamagePerHitFuria,
             blockDamagePA: 10,
             allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
             defenseBonuses: {},
@@ -698,6 +809,12 @@ function App() {
         }
         setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, arrojarUsedThisCombat: true } }));
 
+        let baseDamagePerHitArrojar = 30;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamagePerHitArrojar += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño por objeto arrojado)`);
+        }
+
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Arrojar - Ataque 1/6', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} comienza a arrojar objetos (${defender.name} tiene +2 Esq, -2 Bloq)` });
         setActionState({
             active: true,
@@ -707,7 +824,7 @@ function App() {
             stage: 'awaiting_defense',
             currentHit: 1,
             totalHits: 6,
-            baseDamagePerHit: 30,
+            baseDamagePerHit: baseDamagePerHitArrojar,
             blockDamagePA: 10,
             allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
             defenseBonuses: { esquivar: -2, bloquear: 2 },
@@ -758,7 +875,7 @@ function App() {
             stage: 'awaiting_defense',
             currentComboHit: 1,
             allowedDefenses: ['esquivar', 'bloquear'],
-            furiaHitsLandedInSequence: 0,
+            furiaHitsLandedInSequence: 0, // Reutilizado para contar golpes en combo, o podría ser su propia variable.
         }));
         return;
     }
@@ -839,7 +956,6 @@ function App() {
         return;
     }
     else if (actionName === 'presa' || actionName === 'destrozar') {
-        // Esta es la acción original "Presa" y "Destrozar", no la nueva "Apresar"
         const isPresaOriginal = actionName === 'presa';
         const damageTarget = isPresaOriginal ? 'PV' : 'PA';
         const damageType = isPresaOriginal ? 'directPV' : 'directPA';
@@ -848,7 +964,18 @@ function App() {
 
         let totalDamageAccumulated = 0, successfulHits = 0, successfulRolls = [], lastRoll = null, isGameOverByAction = false;
         const maxHits = attacker.actions[actionName]?.maxHits || 3;
-        const damagePerHit = attacker.actions[actionName]?.damagePerHit || 15;
+        
+        let damagePerHitBase = attacker.actions[actionName]?.damagePerHit || 15;
+        if (attacker.stats.septimoSentidoActivo) {
+            if (actionName === 'presa') {
+                damagePerHitBase += 5;
+                logMessage(`(Séptimo Sentido: +5 Daño por golpe de Presa)`);
+            } else if (actionName === 'destrozar') {
+                damagePerHitBase += 5;
+                logMessage(`(Séptimo Sentido: +5 Daño por golpe de Destrozar)`);
+            }
+        }
+        const damagePerHit = damagePerHitBase;
 
         for (let i = 0; i < maxHits; i++) {
             const roll = rollD20(); lastRoll = roll;
@@ -886,7 +1013,15 @@ function App() {
         setActionState({ active: true, type: 'Romper', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_romper_target', allowedDefenses: null }); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Romper', message: `${attacker.name} se prepara para Romper... ¿Qué parte atacará?` });
         return;
     } else if (actionName === 'atrapar') {
-        logMessage(`${attacker.name} intenta Atrapar a ${defender.name}!`); const roll = rollD20(); const bonus = attacker.stats.atrapar_bonus || 0; const finalRoll = roll + bonus; const targetRange = [11, 20]; logMessage(`${attacker.name} tiró ${roll}${bonus !== 0 ? ` + ${bonus}` : ''} = ${finalRoll} (Necesita ${targetRange[0]}-${targetRange[1]})`);
+        logMessage(`${attacker.name} intenta Atrapar a ${defender.name}!`);
+        const rollAtrapar = rollD20();
+        let bonus = attacker.stats.atrapar_bonus || 0;
+        if (attacker.stats.septimoSentidoActivo) {
+            bonus += 1;
+        }
+        const finalRoll = rollAtrapar + bonus;
+        const targetRange = [11, 20];
+        logMessage(`${attacker.name} tiró ${rollAtrapar}${bonus !== 0 ? ` + ${bonus}` : ''} = ${finalRoll} (Necesita ${targetRange[0]}-${targetRange[1]})`);
         if (finalRoll >= targetRange[0] && finalRoll <= targetRange[1]) {
              logMessage("¡Rival atrapado!");
              setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar', attackerName: attacker.name, defenderName: defender.name, outcome: 'success', message: `${attacker.name} atrapa a ${defender.name} (Tirada: ${finalRoll}). ¡Elige una opción de ataque!` });
@@ -1014,12 +1149,10 @@ function App() {
                            defenseType.startsWith('bloquear') ? 'bloquear' :
                            defenseType.startsWith('contraatacar') ? 'contraatacar' : defenseType;
 
-    // Verificar si la defensa está permitida
     if (actionState.allowedDefenses && !actionState.allowedDefenses.includes(baseDefenseType)) {
         logMessage(`¡Defensa inválida! ${baseDefenseType} no está permitido contra ${actionType.replace(/_/g," ")} (Fase: ${currentStage}).`);
         setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡${baseDefenseType} no permitido contra ${actionType.replace(/_/g," ")}!` });
 
-        // Para acciones multi-hit como Arrojar o Furia, si la defensa es inválida, el golpe conecta automáticamente.
         if (actionType === 'Arrojar' || actionType === 'Furia') {
             logMessage(`Ataque de ${actionType} #${actionState.currentHit} conecta debido a defensa inválida.`);
             const damageToApply = actionState.baseDamagePerHit;
@@ -1045,7 +1178,7 @@ function App() {
                     setCurrentPlayerId(nextPlayerId);
                     logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
                 }
-            } else { // Siguiente golpe de Arrojar o Furia
+            } else {
                 updatedActionState.currentHit += 1;
                 updatedActionState.stage = 'awaiting_defense';
                 let defenseModText = "";
@@ -1053,7 +1186,7 @@ function App() {
                     let penalty = 0;
                     if (updatedActionState.furiaHitsLandedInSequence === 1) penalty = 2;
                     else if (updatedActionState.furiaHitsLandedInSequence >= 2) penalty = 4;
-                    updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty }; // Solo afecta esquivar y bloquear
+                    updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty };
                      if (penalty > 0) defenseModText = `(Defensa rival: Esq/Bloq -${penalty})`;
                 } else if (actionType === 'Arrojar') {
                      defenseModText = `(${defender.name} tiene +2 Esq, -2 Bloq)`;
@@ -1063,7 +1196,7 @@ function App() {
             }
             return;
         }
-        return; // Salir si la defensa es inválida para otras acciones
+        return;
     }
 
 
@@ -1078,27 +1211,65 @@ function App() {
     else if (defenseType === 'esquivar_agilidad' && defender.stats.agilidadAvailable) { logMessage(`¡${defender.name} usa Agilidad (+3 Esquivar)!`); setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, agilidadAvailable: false } })); defenseSpecificBonus = 3; }
     else if (defenseType === 'contraatacar_destreza' && defender.stats.destrezaAvailable) { logMessage(`¡${defender.name} usa Destreza (+2 Contraatacar)!`); setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, destrezaAvailable: false } })); defenseSpecificBonus = 2; }
 
-    // El penalizador de la acción del atacante (ej. Furia, Arrojar)
     let actionDefenseModifier = actionState.defenseBonuses?.[baseDefenseType] || 0;
+    let septimoSentidoDefensaBonus = 0;
+    if (defender.stats.septimoSentidoActivo) {
+        septimoSentidoDefensaBonus = 1; // +1 al rango de defensa (significa que se necesita 1 menos en el dado)
+    }
 
     const finalRequiredRollAdjustment = actionDefenseModifier - defenseSpecificBonus;
 
+
     if (actionDefenseModifier !== 0) defenseBonusOrPenaltyText += ` (Acción: ${actionDefenseModifier > 0 ? '-' : '+'}${Math.abs(actionDefenseModifier)} ${baseDefenseType})`;
     if (defenseSpecificBonus !== 0) defenseBonusOrPenaltyText += ` (Boost: +${defenseSpecificBonus} ${baseDefenseType})`;
+    if (septimoSentidoDefensaBonus !==0 && (baseDefenseType === 'esquivar' || baseDefenseType === 'bloquear' || baseDefenseType === 'contraatacar')) defenseBonusOrPenaltyText += ` (7ºS: +1 Rango Def.)`;
 
 
     const actionKey = actionType.toLowerCase().replace('_opcion', '_op').replace('vel_luz', 'velocidad_luz');
     if (actionType === 'Arrojar') baseDamage = actionState.baseDamagePerHit;
     else if (actionType === 'Furia') baseDamage = actionState.baseDamagePerHit;
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_1') baseDamage = 20;
-    else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') baseDamage = 50;
+    else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') {
+        baseDamage = 50;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamage += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño a ataque real de Engaño)`);
+        }
+    }
     else if (actionType === 'Salto') baseDamage = attacker.actions.salto || 70;
     else if (actionType === 'Velocidad_luz') baseDamage = attacker.actions.velocidad_luz || 50;
-    else if (actionType === 'Combo') baseDamage = attacker.actions.golpe;
-    else if (actionType === 'ComboVelocidadLuz') baseDamage = attacker.actions.velocidad_luz || 50;
-    else if (actionType === 'DobleSalto') baseDamage = (attacker.actions.salto || 0) + 20;
-    else if (actionType.startsWith('Atrapar_')) baseDamage = actionState.baseDamage || 0;
+    else if (actionType === 'Combo') {
+        baseDamage = attacker.actions.golpe;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamage += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño a golpe de Combo)`);
+        }
+    }
+    else if (actionType === 'ComboVelocidadLuz') {
+        baseDamage = attacker.actions.velocidad_luz || 50;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamage += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño a golpe de Combo Vel. Luz)`);
+        }
+    }
+    else if (actionType === 'DobleSalto') {
+        baseDamage = (attacker.actions.salto || 0) + 20;
+         if (attacker.stats.septimoSentidoActivo) { // Bono aplicado al daño final de Doble Salto
+            baseDamage += 30;
+            logMessage(`(Séptimo Sentido: +30 Daño a Doble Salto)`);
+        }
+    }
+    else if (actionType.startsWith('Atrapar_')) baseDamage = actionState.baseDamage || 0; // El daño de Atrapar con 7S se calcula en handleAtraparFollowupSelect
     else baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || 0;
+
+    // Aplicar bono de 7S a acciones de daño fijo que no son multi-golpe y no DobleSalto (ya manejado)
+    if (attacker.stats.septimoSentidoActivo && !actionType.startsWith('Atrapar_') && actionType !== 'DobleSalto' && actionType !== 'Combo' && actionType !== 'ComboVelocidadLuz' && actionType !== 'Engaño') {
+        const actionKeyForSeptimo = actionType.toLowerCase().replace('_opcion', '_op').replace('vel_luz', 'velocidad_luz');
+        if (['golpe', 'lanzar_obj', 'salto', 'velocidad_luz', 'embestir', 'cargar'].includes(actionKeyForSeptimo)) {
+            baseDamage += 30;
+            logMessage(`(Séptimo Sentido: +30 Daño a ${actionType})`);
+        }
+    }
 
 
     if (roll === 1 && baseDefenseType !== 'invalid') {
@@ -1107,7 +1278,8 @@ function App() {
     }
     else if (baseDefenseType === 'esquivar') {
         let [min, max] = defender.defenseRanges.esquivar;
-        targetMin = Math.min(21, Math.max(1, min + finalRequiredRollAdjustment)); targetMax = max;
+        targetMin = Math.min(21, Math.max(1, min + finalRequiredRollAdjustment - septimoSentidoDefensaBonus));
+        targetMax = max;
         if (roll >= targetMin && roll <= targetMax) { defenseSuccessful = true; rollOutcome = 'success'; }
         else { damageToDefender = baseDamage; rollOutcome = 'failure'; }
     } else if (baseDefenseType === 'bloquear') {
@@ -1116,7 +1288,8 @@ function App() {
             rollOutcome = 'invalid'; damageToDefender = baseDamage; targetMin = null; targetMax = null;
             logMessage(`¡Defensa de Bloqueo inválida contra ${actionType}! Impacto directo.`);
         } else {
-            targetMin = Math.min(21, Math.max(1, min + finalRequiredRollAdjustment)); targetMax = max;
+            targetMin = Math.min(21, Math.max(1, min + finalRequiredRollAdjustment - septimoSentidoDefensaBonus));
+            targetMax = max;
             if (roll >= targetMin && roll <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'blocked';
                 if (actionType === 'Arrojar') damageToDefenderPA = actionState.blockDamagePA;
@@ -1130,14 +1303,14 @@ function App() {
         }
     } else if (baseDefenseType === 'contraatacar') {
          let [min, max] = defender.defenseRanges.contraatacar;
-         // Contraataque no es afectado por penalizadores de Furia (actionDefenseModifier será 0 si baseDefenseType es contraatacar y actionType es Furia)
          const contraataqueRollAdjustment = (actionType === 'Furia' ? 0 : actionDefenseModifier) - defenseSpecificBonus;
 
          if (actionType === 'Atrapar_Opcion2' || actionType === 'Atrapar_Opcion7' || actionType === 'DobleSalto' || actionType === 'Velocidad_luz' || actionType === 'ComboVelocidadLuz') {
             rollOutcome = 'invalid'; damageToDefender = baseDamage; targetMin = null; targetMax = null;
             logMessage(`¡Contraataque inválido contra ${actionType}! Impacto directo.`);
          } else {
-            targetMin = Math.min(21, Math.max(1, min + contraataqueRollAdjustment)); targetMax = max;
+            targetMin = Math.min(21, Math.max(1, min + contraataqueRollAdjustment - septimoSentidoDefensaBonus));
+            targetMax = max;
             if (roll >= targetMin && roll <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'countered';
                 damageToAttacker = Math.floor((defender.actions.golpe || 30) / 2);
@@ -1186,11 +1359,9 @@ function App() {
         return;
     }
 
-    // --- Lógica Específica Post-Defensa para Acciones Multi-Golpe ---
     if (actionType === 'Arrojar' || actionType === 'Furia') {
         let updatedActionState = { ...actionState };
 
-        // Actualizar contadores de golpes y daño para la secuencia
         if (actionType === 'Arrojar') {
             if (rollOutcome === 'failure' || rollOutcome === 'invalid' || (rollOutcome === 'blocked' && damageToDefenderPA > 0) || (rollOutcome === 'countered' && damageToAttacker > 0)) {
                 if (damageResultDefender.actualDamageDealt > 0 || damageResultAttacker.actualDamageDealt > 0) {
@@ -1204,7 +1375,6 @@ function App() {
             }
         }
 
-        // Verificar si la secuencia de múltiples golpes ha terminado
         if (updatedActionState.currentHit >= updatedActionState.totalHits) {
             const finalActionName = actionType.toLowerCase();
             logMessage(`Secuencia de ${actionType} terminada.`);
@@ -1221,7 +1391,7 @@ function App() {
             const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
             setCurrentPlayerId(nextPlayerId);
             logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
-        } else { // Siguiente golpe de la secuencia
+        } else {
             updatedActionState.currentHit += 1;
             updatedActionState.stage = 'awaiting_defense';
 
@@ -1230,7 +1400,7 @@ function App() {
                 let penalty = 0;
                 if (updatedActionState.furiaHitsLandedInSequence === 1) penalty = 2;
                 else if (updatedActionState.furiaHitsLandedInSequence >= 2) penalty = 4;
-                updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty }; // Solo afecta esquivar y bloquear
+                updatedActionState.defenseBonuses = { esquivar: penalty, bloquear: penalty };
                  if (penalty > 0) defenseModText = `(Defensa rival: Esq/Bloq -${penalty})`;
             } else if (actionType === 'Arrojar') {
                  defenseModText = `(${defender.name} tiene +2 Esq, -2 Bloq)`;
@@ -1251,7 +1421,7 @@ function App() {
     }
     else if (actionType === 'Combo' || actionType === 'ComboVelocidadLuz') {
         const isComboVel = actionType === 'ComboVelocidadLuz';
-        const currentComboHit = actionState.currentComboHit || actionState.currentHit || 1; // Usar currentHit para Combo normal, currentComboHit para ComboVelocidadLuz
+        const currentComboHit = actionState.currentComboHit || actionState.currentHit || 1;
 
         if (defenseSuccessful || currentComboHit >= 3 ) {
             let finalComboMessage = "";
@@ -1319,7 +1489,14 @@ function App() {
 
     switch (optionId) {
       case 'atrapar_op1': {
-        logMessage(`${attacker.name} usa Golpes Múltiples!`); const rolls = [rollD20(), rollD20(), rollD20()]; const oddRolls = rolls.filter(r => r % 2 !== 0); const oddCount = oddRolls.length; const damage = oddCount * 20; logMessage(`Tiradas: ${rolls.join(', ')}. Aciertos (impares): ${oddCount}. Daño total: ${damage}`);
+        logMessage(`${attacker.name} usa Golpes Múltiples!`); const rolls = [rollD20(), rollD20(), rollD20()]; const oddRolls = rolls.filter(r => r % 2 !== 0); const oddCount = oddRolls.length;
+        let damagePerHitAtraparOp1 = 20;
+        if (attacker.stats.septimoSentidoActivo) {
+            damagePerHitAtraparOp1 += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño por golpe)`);
+        }
+        const damage = oddCount * damagePerHitAtraparOp1;
+        logMessage(`Tiradas: ${rolls.join(', ')}. Aciertos (impares): ${oddCount}. Daño total: ${damage}`);
         if (damage > 0) {
             const { gameOver } = applyDamage(defender.id, damage, 'normal');
             gameOverByFollowup = gameOver;
@@ -1332,23 +1509,38 @@ function App() {
       }
       case 'atrapar_op2': {
         logMessage(`${attacker.name} usa Ataque Potente!`);
-        setActionState({ ...actionState, type: 'Atrapar_Opcion2', stage: 'awaiting_defense', baseDamage: 80, blockDamagePA: 20, allowedDefenses: ['bloquear'] });
-        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Potente', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Potente (80 Daño). ${defender.name}, ¡solo puedes intentar Bloquear!` });
+        let baseDamageAtraparOp2 = 80;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamageAtraparOp2 += 30;
+            logMessage(`(Séptimo Sentido: +30 Daño)`);
+        }
+        setActionState({ ...actionState, type: 'Atrapar_Opcion2', stage: 'awaiting_defense', baseDamage: baseDamageAtraparOp2, blockDamagePA: 20, allowedDefenses: ['bloquear'] });
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Potente', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Potente (${baseDamageAtraparOp2} Daño). ${defender.name}, ¡solo puedes intentar Bloquear!` });
         return;
       }
       case 'atrapar_op3': {
         logMessage(`${attacker.name} inicia Ataques Rápidos!`); let successfulDamageHits = 0, successfulBlocks = 0, totalNormalDamage = 0, totalPADamage = 0;
+        let damagePerHitAtraparOp3 = 20;
+        if (attacker.stats.septimoSentidoActivo) {
+            damagePerHitAtraparOp3 += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño por golpe)`);
+        }
         for (let i = 0; i < 3; i++) {
           if (gameOverByFollowup) break;
           const hitNumber = i + 1; logMessage(`--- Golpe Rápido #${hitNumber} ---`);
-          const [minRoll, maxRoll] = defender.defenseRanges.bloquear; const roll = rollD20(); const blocked = (roll >= minRoll && roll <= maxRoll);
-          logMessage(`${defender.name} intenta Bloquear (Necesita ${minRoll}-${maxRoll}): Tirada ${roll}!`);
+          const [minRoll, maxRoll] = defender.defenseRanges.bloquear; const roll = rollD20();
+          let septimoSentidoDefensaBonusAtrapar = 0;
+          if (defender.stats.septimoSentidoActivo) septimoSentidoDefensaBonusAtrapar = 1;
+          const targetMinBlock = Math.min(21, Math.max(1, minRoll - septimoSentidoDefensaBonusAtrapar));
+
+          const blocked = (roll >= targetMinBlock && roll <= maxRoll);
+          logMessage(`${defender.name} intenta Bloquear (Necesita ${targetMinBlock}-${maxRoll}): Tirada ${roll}!`);
           if (blocked) {
             successfulBlocks++; const damagePA = 10; totalPADamage += damagePA; logMessage(`¡Bloqueado! Recibe ${damagePA} daño PA.`);
             const { gameOver } = applyDamage(defender.id, damagePA, 'directPA');
             if (gameOver) gameOverByFollowup = true;
           } else {
-            successfulDamageHits++; const damageNormal = 20; totalNormalDamage += damageNormal; logMessage(`¡Impacto! Recibe ${damageNormal} daño.`);
+            successfulDamageHits++; const damageNormal = damagePerHitAtraparOp3; totalNormalDamage += damageNormal; logMessage(`¡Impacto! Recibe ${damageNormal} daño.`);
             const { gameOver } = applyDamage(defender.id, damageNormal, 'normal');
             if (gameOver) gameOverByFollowup = true;
           }
@@ -1360,8 +1552,13 @@ function App() {
       }
       case 'atrapar_op4': {
         logMessage(`${attacker.name} usa Ataque Vulnerante!`);
-        setActionState({ ...actionState, type: 'Atrapar_Opcion4', stage: 'awaiting_defense', baseDamage: 60, blockDamagePA: 10, defenseBonuses: { esquivar: 2, bloquear: 2, contraatacar: 2 }, allowedDefenses: null });
-        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Vulnerante', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Vulnerante (60 Daño). ¡${defender.name} defiende con -2 de penalización!` });
+        let baseDamageAtraparOp4 = 60;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamageAtraparOp4 += 30;
+            logMessage(`(Séptimo Sentido: +30 Daño)`);
+        }
+        setActionState({ ...actionState, type: 'Atrapar_Opcion4', stage: 'awaiting_defense', baseDamage: baseDamageAtraparOp4, blockDamagePA: 10, defenseBonuses: { esquivar: 2, bloquear: 2, contraatacar: 2 }, allowedDefenses: null });
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Vulnerante', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Vulnerante (${baseDamageAtraparOp4} Daño). ¡${defender.name} defiende con -2 de penalización!` });
         return;
       }
       case 'atrapar_op5': {
@@ -1372,7 +1569,7 @@ function App() {
         } else {
           logMessage(`${attacker.name} usa Llave Mejorada (+3 Bono)!`);
           const currentDefenderData = defender.id === player1Data.id ? player1Data : player2Data;
-          gameOverByFollowup = resolveLlaveAction(attacker, currentDefenderData, 3);
+          gameOverByFollowup = resolveLlaveAction(attacker, currentDefenderData, 3); // El daño de 7S ya se aplica en resolveLlaveAction
           if (!gameOverByFollowup) {
             setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, lastActionType: currentActionName } }));
           }
@@ -1394,8 +1591,13 @@ function App() {
       }
       case 'atrapar_op7': {
         logMessage(`${attacker.name} usa Ataque Imbloqueable!`);
-        setActionState({ ...actionState, type: 'Atrapar_Opcion7', stage: 'awaiting_defense', baseDamage: 60, allowedDefenses: ['esquivar'] });
-        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Imbloqueable', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Imbloqueable (60 Daño). ${defender.name}, ¡solo puedes intentar Esquivar!` });
+        let baseDamageAtraparOp7 = 60;
+        if (attacker.stats.septimoSentidoActivo) {
+            baseDamageAtraparOp7 += 10;
+            logMessage(`(Séptimo Sentido: +10 Daño)`);
+        }
+        setActionState({ ...actionState, type: 'Atrapar_Opcion7', stage: 'awaiting_defense', baseDamage: baseDamageAtraparOp7, allowedDefenses: ['esquivar'] });
+        setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Atrapar: Ataque Imbloqueable', attackerName: attacker.name, defenderName: defender.name, message: `${attacker.name} lanza Ataque Imbloqueable (${baseDamageAtraparOp7} Daño). ${defender.name}, ¡solo puedes intentar Esquivar!` });
         return;
       }
       default: {
