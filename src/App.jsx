@@ -1,6 +1,5 @@
 import './App.css'
 import { useState, useEffect } from 'react'
-// Asegúrate que las rutas a tus componentes sean correctas
 import PlayerArea from './components/PlayerArea'
 import GameLog from './components/GameLog'
 import ArenaDisplay from './components/ArenaDisplay'
@@ -29,7 +28,8 @@ const initialPlayer1Data = {
     dobleSaltoUsedThisCombat: false,
     arrojarUsedThisCombat: false,
     furiaUsedThisCombat: false,
-    apresarUsedThisCombat: false, // Nueva propiedad para Apresar
+    apresarUsedThisCombat: false,
+    quebrarUsedThisCombat: false, // Nueva propiedad para Quebrar
   },
   defenseRanges: {
     esquivar: [8, 20],
@@ -43,8 +43,8 @@ const initialPlayer1Data = {
     velocidad_luz: 50,
     embestir: 70,
     cargar: 80,
-    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' }, // Usado por la nueva acción Apresar para el daño
-    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' }, // Usaremos damagePerHit de destrozar para Quebrar
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
@@ -60,7 +60,8 @@ const initialPlayer1Data = {
     doble_salto: true,
     arrojar: true,
     furia: true,
-    apresar: true, // Nueva acción Apresar
+    apresar: true,
+    quebrar: true, // Nueva acción Quebrar
   },
   powers: [ { id: 'P001', name: 'Meteoros de Pegaso', cost: 100, type: ['RMult'], details: '5-8 golpes x 20 Ptos Daño' }, { id: 'P002', name: 'Vuelo del Pegaso', cost: 100, type: ['LL'], damage: 100 }, { id: 'P003', name: 'Cometa Pegaso', cost: 200, type: ['R'], damage: 190, effects: '-1 Esq/-1 Bloq' }, ],
   bonuses: { pasivos: ['+2 Esq', '+1 ContrAtq', '+2 7º Sent', '+10 Dmg Salto/VelLuz/Embestir', '+1 Percep'], activos: ['+4 Int Div', '+4 Ayuda (aliados)', 'UltSuspiro 25% PV', 'Armadura Divina'], },
@@ -91,7 +92,8 @@ const initialPlayer2Data = {
     dobleSaltoUsedThisCombat: false,
     arrojarUsedThisCombat: false,
     furiaUsedThisCombat: false,
-    apresarUsedThisCombat: false, // Nueva propiedad para Apresar
+    apresarUsedThisCombat: false,
+    quebrarUsedThisCombat: false, // Nueva propiedad para Quebrar
   },
   defenseRanges: {
     esquivar: [10, 20],
@@ -105,8 +107,8 @@ const initialPlayer2Data = {
     velocidad_luz: 50,
     embestir: 60,
     cargar: 80,
-    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' }, // Usado por la nueva acción Apresar para el daño
-    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' },
+    presa: { damagePerHit: 15, maxHits: 3, type: 'vida' },
+    destrozar: { damagePerHit: 15, maxHits: 3, type: 'armadura' }, // Usaremos damagePerHit de destrozar para Quebrar
     lanzar_obj: 60,
     romper: true,
     atrapar: true,
@@ -122,7 +124,8 @@ const initialPlayer2Data = {
     doble_salto: true,
     arrojar: true,
     furia: true,
-    apresar: true, // Nueva acción Apresar
+    apresar: true,
+    quebrar: true, // Nueva acción Quebrar
   },
   powers: [ { id: 'S001', name: 'Patada Dragón', cost: 50, type: ['R'], damage: 40, details: '+10 Dmg Salto stack' }, { id: 'S002', name: 'Dragón Volador', cost: 50, type: ['R', 'G'], damage: 70 }, { id: 'S003', name: 'Rozan Ryuu Hi Shou', cost: 100, type: ['R', 'G'], damage: 100, details: 'Weak Point on Counter' }, { id: 'S004', name: 'Cien Dragones de Rozan', cost: 200, type: ['RB', 'G'], damage: 160, effects: '-3 Bloquear' }, { id: 'S005', name: 'Último Dragón', cost: 200, type: ['LL'], damage: 200, details: 'Self-dmg 120, 1 use' }, { id: 'S006', name: 'Excalibur', cost: 100, type: ['R', 'RArm', 'M'], damage: 100, details: 'Ignore Def Bonus, Destroys Armor on 1-2' }, ],
   bonuses: { pasivos: ['+1 Percep', '+2 Bloq (ESC, ARM)', '+10 Dmg Golpe (ARM)'], activos: ['+2 Ayuda (aliados)', '+2 Int Div', 'Valentía del Dragón', 'Armadura Divina'], flags: ['ESC', 'ARM'] },
@@ -143,7 +146,7 @@ const atraparFollowupOptions = [
 // Helper function to check concentration requirements
 const getActionConcentrationRequirement = (actionName) => {
     const level1Actions = ['velocidad_luz', 'salto', 'combo', 'engaño', 'lanzamientos_sucesivos'];
-    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia', 'apresar']; // Añadido apresar
+    const level2Actions = ['combo_velocidad_luz', 'doble_salto', 'arrojar', 'furia', 'apresar', 'quebrar']; // Añadido quebrar
 
     if (level2Actions.includes(actionName)) return 2;
     if (level1Actions.includes(actionName)) return 1;
@@ -199,11 +202,13 @@ function App() {
         let overflowDamage = damageAmount - damageToPa;
         if (overflowDamage > 0) {
             logMessage(`¡Armadura rota por daño directo a PA! ${overflowDamage} daño excedente.`);
-            damageToPv = overflowDamage;
-            actualDamageApplied += damageToPv;
+            // Según reglas, el daño de Quebrar es solo a PA. Si rompe la armadura, no hay desbordamiento a PV.
+            // Comentamos la siguiente línea para Quebrar, pero la dejamos por si otras acciones directPA sí desbordan.
+            // damageToPv = overflowDamage;
+            // actualDamageApplied += damageToPv;
         }
-        logMessage(`${targetData.name} recibe ${damageToPa} daño a PA${damageToPv > 0 ? ` y ${damageToPv} daño a PV` : ''}.`);
-    } else {
+        logMessage(`${targetData.name} recibe ${damageToPa} daño a PA.`);
+    } else { // Daño normal (mitad y mitad)
         damageToPa = Math.ceil(damageAmount / 2);
         damageToPv = Math.floor(damageAmount / 2);
         const actualPaDamage = Math.min(currentPA, damageToPa);
@@ -251,7 +256,8 @@ function App() {
         playerStats.dobleSaltoUsedThisCombat = false;
         playerStats.arrojarUsedThisCombat = false;
         playerStats.furiaUsedThisCombat = false;
-        playerStats.apresarUsedThisCombat = false; // Resetear Apresar
+        playerStats.apresarUsedThisCombat = false;
+        playerStats.quebrarUsedThisCombat = false; // Resetear Quebrar
         playerStats.fortalezaUsedThisCombat = false;
         playerStats.agilidadUsedThisCombat = false;
         playerStats.destrezaUsedThisCombat = false;
@@ -460,6 +466,7 @@ function App() {
     }
 
     const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'lanzamientos_sucesivos', 'resistencia', 'apresar'].includes(actionName);
+    // Quebrar no está en la lista de alternancia, ya que su uso único por combate es una restricción más fuerte.
     if (isAlternationAction && attacker.stats.lastActionType === actionName) {
         logMessage(`¡Regla de Alternancia! No se puede usar ${actionName.replace(/_/g, ' ')} dos veces seguidas.`);
         setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡No puedes usar ${actionName.replace(/_/g, ' ')} consecutivamente!` });
@@ -486,7 +493,7 @@ function App() {
 
         if (actualPreviousLevel >= 2) {
             logMessage(`Error: ${attacker.name} ya está en el nivel máximo de concentración (Nivel 2) o intentó concentrarse desde Nivel 2.`);
-            restoreConcentrationIfNeeded();
+            restoreConcentrationIfNeeded(); // Devuelve la concentración si se consumió para intentar llegar a Nivel 3
             return;
         }
         const nextLevel = actualPreviousLevel + 1;
@@ -510,6 +517,83 @@ function App() {
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
         setCurrentPlayerId(nextPlayerId);
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        return;
+    }
+    // --- Quebrar Action ---
+    else if (actionName === 'quebrar') {
+        logMessage(`${attacker.name} intenta Quebrar la armadura de ${defender.name}!`);
+        if (attacker.stats.quebrarUsedThisCombat) {
+            logMessage(`¡${attacker.name} ya usó Quebrar en este combate!`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡Quebrar solo se puede usar una vez por combate!` });
+            restoreConcentrationIfNeeded(); // Importante devolver la concentración si la acción no procede
+            return;
+        }
+        if (defender.stats.currentPA <= 0) {
+            logMessage(`La armadura de ${defender.name} ya está destruida. ¡Quebrar no tiene efecto!`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'no_armor', message: `¡La armadura de ${defender.name} ya está rota! Quebrar no tiene efecto.` });
+            restoreConcentrationIfNeeded(); // Devuelve concentración si la acción es inválida
+            // No se marca como usada si no tuvo efecto por armadura ya rota, para no penalizar al jugador
+            // Pero SÍ se consume el turno y la concentración si se intentó.
+            // Decidimos que si la armadura está rota, la acción no se "gasta" y se devuelve la concentración.
+            // Si se quiere que se gaste igual, quitar restoreConcentrationIfNeeded y no pasar turno abajo.
+            // Por ahora, si no hay armadura, no se gasta el uso ni la concentración.
+            return;
+        }
+
+        setAttackerData(prev => ({ ...prev, stats: { ...prev.stats, quebrarUsedThisCombat: true, lastActionType: 'quebrar' } }));
+
+        const numberOfDice = 5;
+        const rolls = [];
+        let oddRollsCount = 0;
+        for (let i = 0; i < numberOfDice; i++) {
+            const roll = rollD20();
+            rolls.push(roll);
+            if (roll % 2 !== 0) { // Impar
+                oddRollsCount++;
+            }
+        }
+        logMessage(`${attacker.name} lanza ${numberOfDice} dados para Quebrar: ${rolls.join(', ')}.`);
+        logMessage(`Resultados impares: ${oddRollsCount}.`);
+
+        let gameOverByQuebrar = false;
+        if (oddRollsCount > 0) {
+            const damagePerImpar = attacker.actions.destrozar?.damagePerHit || 15; // Daño de Destrozar
+            const totalDamage = oddRollsCount * damagePerImpar;
+            logMessage(`${attacker.name} inflige ${totalDamage} daño directo a PA (${oddRollsCount} impares x ${damagePerImpar} c/u).`);
+            const { gameOver } = applyDamage(defender.id, totalDamage, 'directPA'); // Daño directo a la armadura
+            gameOverByQuebrar = gameOver;
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Quebrar',
+                attackerName: attacker.name,
+                defenderName: defender.name,
+                rolls: rolls,
+                oddCount: oddRollsCount,
+                damage: totalDamage,
+                message: `${attacker.name} quiebra la armadura de ${defender.name}! ${oddRollsCount} de ${numberOfDice} dados fueron impares (${rolls.join(', ')}), infligiendo ${totalDamage} daño directo a PA.`
+            });
+        } else {
+            logMessage(`${attacker.name} no obtuvo resultados impares. ¡Quebrar no hace daño!`);
+            setArenaEvent({
+                id: Date.now(),
+                type: 'action_effect',
+                actionName: 'Quebrar',
+                attackerName: attacker.name,
+                defenderName: defender.name,
+                rolls: rolls,
+                oddCount: oddRollsCount,
+                outcome: 'failure',
+                message: `${attacker.name} intenta Quebrar, pero no obtiene resultados impares (${rolls.join(', ')}). ¡Sin daño a la armadura!`
+            });
+        }
+
+        if (!gameOverByQuebrar) {
+            setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
+            const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+            setCurrentPlayerId(nextPlayerId);
+            logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+        }
         return;
     }
     // --- Apresar Action ---

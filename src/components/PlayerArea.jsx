@@ -69,8 +69,14 @@ function PlayerArea({
               isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
             } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) {
               isDisabled = true; buttonTitle = "Furia ya usada este combate";
-            } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) { // Lógica para Apresar
+            } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) {
               isDisabled = true; buttonTitle = "Apresar ya usado este combate";
+            } else if (actionName === 'quebrar') { // Lógica para Quebrar
+                if (characterData.stats.quebrarUsedThisCombat) {
+                    isDisabled = true; buttonTitle = "Quebrar ya usado este combate";
+                } else if (opponentData && opponentData.stats.currentPA <= 0) {
+                    isDisabled = true; buttonTitle = "La armadura del rival ya está destruida";
+                }
             }
         }
 
@@ -79,6 +85,7 @@ function PlayerArea({
             if (buttonTitle.includes("usad")) buttonText += " (Usada)";
             else if (buttonTitle.includes("activ")) buttonText += " (Activa)";
             else if (buttonTitle.includes("rotas al máximo")) buttonText += " (MAX)";
+            else if (buttonTitle.includes("armadura del rival ya está destruida")) buttonText += " (S/A)";
             else if (isAlternationBlocked) buttonText += " (Alt.)";
         }
 
@@ -86,7 +93,7 @@ function PlayerArea({
         return (
           <button
             key={`${actionName}-lvl${levelRequired}`}
-            className={`action-button ${levelRequired === 2 ? 'concentrated-action-lvl2' : ''}`}
+            className={`action-button ${levelRequired === 2 ? 'concentrated-action-lvl2' : ''} ${actionName === 'quebrar' ? 'quebrar-button' : ''}`} // Clase específica para Quebrar si se necesita estilo
             onClick={() => handleActionInitiate(actionName)}
             disabled={isDisabled}
             title={buttonTitle}
@@ -131,7 +138,7 @@ function PlayerArea({
                         key="concentracion-again"
                         className="action-button concentrate-again-button"
                         onClick={() => handleActionInitiate('concentracion')}
-                        disabled={false}
+                        disabled={false} // Siempre se puede intentar concentrar a Nivel 2 desde Nivel 1
                         title={"Concentrarse de Nuevo (Nivel 2)"}
                     >
                         Concentrarse de Nuevo
