@@ -6,7 +6,7 @@ const ANIMATION_DURATION = 1500; // Total animation duration in ms
 const CYCLE_INTERVAL = 100; // Interval between number changes in ms
 const HIGHLIGHT_DURATION = 1000; // How long the final roll value stays highlighted
 
-const ArenaDisplay = ({ event }) => {
+const ArenaDisplay = ({ arenaEvent: event }) => {
   // State for the number shown during animation
   const [displayedRoll, setDisplayedRoll] = useState(null);
   // State to control when the final outcome/message is shown

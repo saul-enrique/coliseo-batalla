@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react'
 import PlayerArea from './components/PlayerArea' // Asegúrate que la ruta a PlayerArea sea correcta
 import GameLog from './components/GameLog'       // Asegúrate que la ruta a GameLog sea correcta
 import ArenaDisplay from './components/ArenaDisplay' // Asegúrate que la ruta a ArenaDisplay sea correcta
+import CharacterSelection from './components/CharacterSelection'; // Importar CharacterSelection
+import { CABALLEROS_DISPONIBLES } from './data/caballeros'; // Importar datos de personajes
 
 // Initial character data
 const initialPlayer1Data = {
@@ -204,9 +206,10 @@ const getPuntosVitalesPowerDamagePenalty = (power, attackerStats) => {
 
 
 function App() {
-  const [player1Data, setPlayer1Data] = useState(JSON.parse(JSON.stringify(initialPlayer1Data)));
-  const [player2Data, setPlayer2Data] = useState(JSON.parse(JSON.stringify(initialPlayer2Data)));
-  const [currentPlayerId, setCurrentPlayerId] = useState(initialPlayer1Data.id);
+  const [gameView, setGameView] = useState('characterSelection'); // NUEVO estado para la vista
+  const [player1Data, setPlayer1Data] = useState(null); // Inicializar con null
+  const [player2Data, setPlayer2Data] = useState(null); // Inicializar con null
+  const [currentPlayerId, setCurrentPlayerId] = useState(null); // Inicializar con null o el ID del primer jugador después de la selección
   const [actionState, setActionState] = useState({
     active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null,
     currentHit: 0, totalHits: 0, baseDamagePerHit: 0, blockDamagePA: 0,
@@ -223,6 +226,41 @@ function App() {
   };
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // NUEVA función para manejar el inicio del combate
+  const handleCombatStart = (selectedP1, selectedP2) => {
+    const initializePlayerData = (playerData) => {
+      const data = JSON.parse(JSON.stringify(playerData));
+      if (!data.stats) {
+        data.stats = {};
+      }
+      if (!data.stats.brokenParts) {
+        data.stats.brokenParts = { arms: 0, legs: 0, ribs: 0 };
+      }
+      if (!data.stats.statPenaltiesFromBreaks) {
+        data.stats.statPenaltiesFromBreaks = { esquivar: 0, bloquear: 0, llave: 0, contraatacar: 0, golpeDamageReduction: 0 };
+      }
+      if (typeof data.stats.allPartsBrokenPenaltyApplied === 'undefined') {
+        data.stats.allPartsBrokenPenaltyApplied = false;
+      }
+      // Asegurar que otras stats necesarias para 'Romper' y sus consecuencias estén presentes
+      // Por ejemplo, si 'contraatacar' o 'golpe' se leen directamente de 'actions' para su efectividad
+      // y esta se modifica, hay que tenerlo en cuenta.
+      // Por ahora, los penalizadores se almacenan en statPenaltiesFromBreaks.
+      return data;
+    };
+
+    const p1Data = initializePlayerData(selectedP1);
+    const p2Data = initializePlayerData(selectedP2);
+
+    setPlayer1Data(p1Data);
+    setPlayer2Data(p2Data);
+    setCurrentPlayerId(p1Data.id);
+    setGameView('combat');
+    setGameLog([]);
+    setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null });
+    setArenaEvent(null);
+  };
 
   // Helper para actualizar stats del jugador y el historial de acciones
   const updatePlayerStatsAndHistory = (playerId, statChanges, actionNameToLog) => {
@@ -245,11 +283,11 @@ function App() {
     });
   };
 
-
   const applyDamage = (targetPlayerId, damageAmount, damageType = 'normal') => {
     const targetData = targetPlayerId === player1Data.id ? player1Data : player2Data;
-    const setTargetData = targetPlayerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
-    let isGameOver = false;
+    if (!targetData) return; // Añadir verificación por si los datos del jugador aún no están cargados
+    const setPlayerData = targetPlayerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
+    let actualDamage = damageAmount;
     if (damageAmount <= 0) { logMessage(`Intento de aplicar ${damageAmount} daño. No se aplicó daño.`); return { gameOver: false, actualDamageDealt: 0 }; }
     logMessage(`Aplicando ${damageAmount} daño base (Tipo: ${damageType}) a ${targetData.name}...`);
     let damageToPa = 0, damageToPv = 0;
@@ -287,55 +325,35 @@ function App() {
     finalPV = Math.max(0, currentPV - damageToPv);
     finalPA = Math.max(0, finalPA);
     if (finalPV <= 0) {
-        isGameOver = true;
         logMessage(`!!! ${targetData.name} ha sido derrotado !!!`);
+        return { gameOver: true, actualDamageDealt: actualDamageApplied };
     }
-     setTargetData(prevData => ({
+     setPlayerData(prevData => ({
         ...prevData,
         stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
     }));
     logMessage(`${targetData.name} - PV: ${finalPV}/${targetData.stats.pv_max}, PA: ${finalPA}/${targetData.stats.pa_max}`);
-    if (isGameOver) { setActionState(prev => ({ ...prev, stage: 'game_over' })); }
-    return { gameOver: isGameOver, actualDamageDealt: actualDamageApplied };
+    return { gameOver: false, actualDamageDealt: actualDamageApplied };
   };
 
   const handlePlayAgain = () => {
-    logMessage("Reiniciando el juego...");
-    const resetPlayer1 = JSON.parse(JSON.stringify(initialPlayer1Data));
-    const resetPlayer2 = JSON.parse(JSON.stringify(initialPlayer2Data));
-    const resetCombatStats = (playerStats) => {
-        playerStats.concentrationLevel = 0;
-        playerStats.comboVelocidadLuzUsedThisCombat = false;
-        playerStats.dobleSaltoUsedThisCombat = false;
-        playerStats.arrojarUsedThisCombat = false;
-        playerStats.furiaUsedThisCombat = false;
-        playerStats.apresarUsedThisCombat = false;
-        playerStats.quebrarUsedThisCombat = false;
-        playerStats.fortalezaUsedThisCombat = false;
-        playerStats.agilidadUsedThisCombat = false;
-        playerStats.destrezaUsedThisCombat = false;
-        playerStats.resistenciaUsedThisCombat = false;
-        playerStats.lanzamientosSucesivosUsedThisCombat = false;
-        playerStats.fortalezaAvailable = false;
-        playerStats.agilidadAvailable = false;
-        playerStats.destrezaAvailable = false;
-        playerStats.resistenciaAvailable = false;
-        playerStats.lastActionType = null;
-        playerStats.actionHistory = [];
-        playerStats.septimoSentidoActivo = false;
-        playerStats.septimoSentidoIntentado = false;
-        playerStats.puntosVitalesGolpeados = false;
-        playerStats.puntosVitalesUsadoPorAtacante = false;
-        return playerStats;
-    };
-    resetPlayer1.stats = resetCombatStats(resetPlayer1.stats);
-    resetPlayer2.stats = resetCombatStats(resetPlayer2.stats);
-    setPlayer1Data(resetPlayer1);
-    setPlayer2Data(resetPlayer2);
-    setCurrentPlayerId(initialPlayer1Data.id);
-    setActionState({ active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null, currentHit: 0, totalHits: 0, baseDamagePerHit: 0, blockDamagePA: 0, hitsLandedThisTurn: 0, damageDealtThisTurn: 0, furiaHitsLandedInSequence: 0 });
-    setGameLog([]);
-    setArenaEvent(null);
+    // No reiniciar los datos de los jugadores aquí directamente.
+    // Simplemente cambia la vista a la selección de personajes.
+    // Los datos de los jugadores se reiniciarán o se establecerán con nuevos personajes
+    // cuando se llame a handleCombatStart.
+    setGameView('characterSelection');
+    setPlayer1Data(null); // Reiniciar datos del jugador 1
+    setPlayer2Data(null); // Reiniciar datos del jugador 2
+    setCurrentPlayerId(null); // Reiniciar jugador actual
+    setGameLog([]); // Reiniciar el log del juego
+    setActionState({ // Resetear el estado de la acción
+        active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null,
+        currentHit: 0, totalHits: 0, baseDamagePerHit: 0, blockDamagePA: 0,
+        hitsLandedThisTurn: 0, damageDealtThisTurn: 0, furiaHitsLandedInSequence: 0,
+      });
+    setArenaEvent(null); // Resetear eventos de la arena
+    // No es necesario llamar a resetCombatStats individualmente si se reinician los datos completos
+    // de los jugadores a null o a nuevos personajes.
   };
 
   const resolveLlaveAction = (attacker, defender, additionalBonus = 0) => {
@@ -356,8 +374,17 @@ function App() {
     while (ties < 3) {
       const attackerBaseRoll = rollD20();
       const defenderBaseRoll = rollD20();
-      let totalAttackerBonus = 2 + additionalBonus;
+      let totalAttackerBonus = 2 + additionalBonus; // Bono base de +2 para el atacante en llave
       let totalDefenderBonus = 0;
+
+      // Aplicar penalizador a la tirada del atacante si tiene las costillas rotas
+      if (attacker.stats.statPenaltiesFromBreaks?.llave) {
+          const llavePenalty = attacker.stats.statPenaltiesFromBreaks.llave; // ej. -1
+          if (llavePenalty !== 0) { // Solo aplicar y loguear si hay penalizador real
+            totalAttackerBonus += llavePenalty;
+            logMessage(`(Atacante con Costillas Rotas: ${llavePenalty} a tirada de Llave)`);
+          }
+      }
 
       if (attacker.stats.septimoSentidoActivo) totalAttackerBonus += 1;
       if (attacker.stats.puntosVitalesGolpeados) totalAttackerBonus -= 1;
@@ -388,25 +415,80 @@ function App() {
       let isGameOver = false; const partKey = partToBreak;
       const roll1Base = rollD20(); const roll1 = roll1Base + additionalBonus;
       logMessage(`Primer intento para romper ${partKey}: Tirada = ${roll1Base}${additionalBonus > 0 ? `+${additionalBonus}` : ''} = ${roll1}`);
-      if (roll1 < 11) { logMessage("¡Primer intento fallido!"); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Romper ${partKey}`, outcome: 'failure', message: `${attacker.name} falla el primer intento (Tirada: ${roll1})` }); return false; }
+      if (roll1 < 11 || roll1 > 20) { // Rango es 11-20
+          logMessage("¡Primer intento fallido!");
+          setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Romper ${partKey}`, outcome: 'failure', message: `${attacker.name} falla el primer intento (Tirada: ${roll1})` });
+          return false;
+      }
       logMessage("¡Primer intento exitoso! Realizando segundo intento...");
       const roll2Base = rollD20(); const roll2 = roll2Base + additionalBonus;
       logMessage(`Segundo intento para romper ${partKey}: Tirada = ${roll2Base}${additionalBonus > 0 ? `+${additionalBonus}` : ''} = ${roll2}`);
-      if (roll2 < 11) { logMessage("¡Segundo intento fallido!"); setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Romper ${partKey}`, outcome: 'failure', message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})` }); return false; }
+      if (roll2 < 11 || roll2 > 20) { // Rango es 11-20
+          logMessage("¡Segundo intento fallido!");
+          setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Romper ${partKey}`, outcome: 'failure', message: `${attacker.name} falla el segundo intento (Tiradas: ${roll1}, ${roll2})` });
+          return false;
+      }
       logMessage(`¡Éxito! ¡${partKey} de ${defender.name} rotos!`);
-      const currentBreaks = defender.stats.brokenParts[partKey]; const newBreaks = currentBreaks + 1;
-      const newBrokenParts = { ...defender.stats.brokenParts, [partKey]: newBreaks };
+      
+      const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
+      let defenderStatUpdates = {};
+      let newBrokenParts = { ...defender.stats.brokenParts };
+      newBrokenParts[partKey] = (newBrokenParts[partKey] || 0) + 1;
+
+      let newPenalties = defender.stats.statPenaltiesFromBreaks ? { ...defender.stats.statPenaltiesFromBreaks } : { esquivar: 0, bloquear: 0, llave: 0, contraatacar: 0, golpeDamageReduction: 0 };
+
+      let penaltyMessagePart = "";
+
+      if (partKey === 'arms') {
+          newPenalties.bloquear -= 1; // Acumulativo
+          penaltyMessagePart = `-1 Bloquear (Total Acumulado: ${newPenalties.bloquear})`;
+      } else if (partKey === 'legs') {
+          newPenalties.esquivar -= 1; // Acumulativo
+          penaltyMessagePart = `-1 Esquivar (Total Acumulado: ${newPenalties.esquivar})`;
+      } else if (partKey === 'ribs') {
+          newPenalties.llave -= 1; // Acumulativo
+          penaltyMessagePart = `-1 Llave (Total Acumulado: ${newPenalties.llave})`;
+      }
+
+      defenderStatUpdates.brokenParts = newBrokenParts;
+      defenderStatUpdates.statPenaltiesFromBreaks = newPenalties;
+
+      // Verificar si las 3 partes principales están rotas al menos una vez
+      // para aplicar el penalizador global. Solo se aplica una vez.
+      const armsBroken = newBrokenParts.arms >= 1;
+      const legsBroken = newBrokenParts.legs >= 1;
+      const ribsBroken = newBrokenParts.ribs >= 1;
+
+      // Añadir una flag para asegurar que este bono global solo se aplique una vez.
+      // Asumimos que 'allPartsBrokenPenaltyApplied' se inicializa a false en las stats del personaje.
+      let allPartsBrokenPenaltyMessage = "";
+      if (armsBroken && legsBroken && ribsBroken && !defender.stats.allPartsBrokenPenaltyApplied) {
+          newPenalties.contraatacar -= 1;
+          newPenalties.golpeDamageReduction += 10; // Asumiendo que esto es una reducción directa
+          defenderStatUpdates.allPartsBrokenPenaltyApplied = true; // Marcar como aplicado
+          allPartsBrokenPenaltyMessage = "¡Todas las partes principales rotas! Rival pierde -1 Contraatacar y -10 Daño Golpe.";
+          logMessage(allPartsBrokenPenaltyMessage);
+      }
+      
+      setDefenderData(prev => ({
+          ...prev,
+          stats: {
+              ...prev.stats,
+              ...defenderStatUpdates
+          }
+      }));
+
       const damagePV = 20;
       const { gameOver } = applyDamage(defender.id, damagePV, 'directPV');
       isGameOver = gameOver;
-      const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
-      setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, brokenParts: newBrokenParts } }));
-
-      let penaltyMessage = '';
-      if (partKey === 'arms') penaltyMessage = `-1 Bloquear (${newBreaks} vez/veces)`;
-      if (partKey === 'legs') penaltyMessage = `-1 Esquivar (${newBreaks} vez/veces)`;
-      if (partKey === 'ribs') penaltyMessage = `-1 Llave (${newBreaks} vez/veces)`;
-      setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: `Romper ${partKey}`, outcome: 'success', message: `¡${partKey.charAt(0).toUpperCase() + partKey.slice(1)} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. Penalizador: ${penaltyMessage}.` });
+      
+      setArenaEvent({ 
+          id: Date.now(), 
+          type: 'action_effect', 
+          actionName: `Romper ${partKey.charAt(0).toUpperCase() + partKey.slice(1)}`, 
+          outcome: 'success', 
+          message: `¡${partKey.charAt(0).toUpperCase() + partKey.slice(1)} de ${defender.name} Rotos! (Tiradas: ${roll1}, ${roll2}). ${defender.name} pierde ${damagePV} PV. ${penaltyMessagePart}. ${allPartsBrokenPenaltyMessage}`.trim() 
+      });
       return isGameOver;
   };
 
@@ -493,6 +575,11 @@ function App() {
   const handleActionInitiate = async (actionName) => {
     const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
     const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
+
+    if (!attacker || !defender) { // Verificación crucial
+        logMessage("Error en handleActionInitiate: Datos de jugador no cargados.");
+        return;
+    }
 
     console.log('Acción iniciada:', actionName, "por", attacker.name);
 
@@ -1064,41 +1151,88 @@ function App() {
     let septimoSentidoDefensaBonus = defender.stats.septimoSentidoActivo ? 1 : 0;
     let puntosVitalesDefensaPenaltyValue = defender.stats.puntosVitalesGolpeados ? 1 : 0;
 
-    const finalRequiredRollAdjustment = actionDefenseModifier - defenseSpecificBonus;
+    // Incorporar penalizadores por partes rotas del DEFENSOR
+    const breakPenalties = defender.stats.statPenaltiesFromBreaks || { esquivar: 0, bloquear: 0, contraatacar: 0 };
+    let specificBreakPenaltyValue = 0; // Este será el valor del penalizador (ej. -1, -2)
+
+    if (baseDefenseType === 'esquivar') {
+        specificBreakPenaltyValue = breakPenalties.esquivar;
+    } else if (baseDefenseType === 'bloquear') {
+        specificBreakPenaltyValue = breakPenalties.bloquear;
+    } else if (baseDefenseType === 'contraatacar') {
+        specificBreakPenaltyValue = breakPenalties.contraatacar;
+    }
+    
+    // finalRequiredRollAdjustment se suma al 'min' del rango de defensa.
+    // Si specificBreakPenaltyValue es -1 (un malus), queremos que targetMin AUMENTE.
+    // Entonces, restamos el penalizador: X - (-1) = X + 1.
+    const finalRequiredRollAdjustment = actionDefenseModifier - defenseSpecificBonus - specificBreakPenaltyValue;
+
 
     if (actionDefenseModifier !== 0) defenseBonusOrPenaltyText += ` (Acción: ${actionDefenseModifier > 0 ? '-' : '+'}${Math.abs(actionDefenseModifier)})`;
     if (defenseSpecificBonus !== 0) defenseBonusOrPenaltyText += ` (Boost: +${defenseSpecificBonus})`;
     if (septimoSentidoDefensaBonus !==0 && (baseDefenseType === 'esquivar' || baseDefenseType === 'bloquear' || baseDefenseType === 'contraatacar')) defenseBonusOrPenaltyText += ` (7ºS Def: +1 Rango)`;
     if (puntosVitalesDefensaPenaltyValue !==0 && (baseDefenseType === 'esquivar' || baseDefenseType === 'bloquear' || baseDefenseType === 'contraatacar')) defenseBonusOrPenaltyText += ` (PV Def: -1 Rango)`;
+    if (specificBreakPenaltyValue !== 0) defenseBonusOrPenaltyText += ` (Roto: ${specificBreakPenaltyValue > 0 ? '+' : ''}${specificBreakPenaltyValue})`;
+
 
     const actionKey = actionType.toLowerCase().replace('_opcion', '_op').replace('vel_luz', 'velocidad_luz');
+    const attackerBreakPenalties = attacker.stats.statPenaltiesFromBreaks || { golpeDamageReduction: 0 };
+    const golpeDamageReductionFromBreaks = attackerBreakPenalties.golpeDamageReduction || 0;
+
     if (actionType === 'Arrojar') baseDamage = actionState.baseDamagePerHit;
     else if (actionType === 'Furia') baseDamage = actionState.baseDamagePerHit;
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_1') baseDamage = 20;
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') {
         baseDamage = 50;
-        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño)`); }
-        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño)`); }
     }
     else if (actionType === 'Combo') {
         baseDamage = attacker.actions.golpe;
-        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño/golpe)`); }
-        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño/golpe)`); }
+        if (golpeDamageReductionFromBreaks > 0) {
+            baseDamage = Math.max(0, baseDamage - golpeDamageReductionFromBreaks);
+            logMessage(`(Atacante con partes rotas: -${golpeDamageReductionFromBreaks} Daño/Golpe Combo)`);
+        }
     }
     else if (actionType === 'ComboVelocidadLuz') {
         baseDamage = attacker.actions.velocidad_luz || 50;
-        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño/golpe)`); }
-        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño/golpe)`); }
+        if (golpeDamageReductionFromBreaks > 0) {
+            baseDamage = Math.max(0, baseDamage - golpeDamageReductionFromBreaks);
+            logMessage(`(Atacante con partes rotas: -${golpeDamageReductionFromBreaks} Daño/Golpe ComboVelLuz)`);
+        }
     }
     else if (actionType === 'DobleSalto') {
-        baseDamage = (attacker.actions.salto || 0) + 20;
-        if (attacker.stats.septimoSentidoActivo) { baseDamage += 30; logMessage(`(7S Atacante: +30 Daño)`); }
-        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 20); logMessage(`(PV Atacante: -20 Daño)`); }
+        baseDamage = (attacker.actions.salto || 0) + 20; // DobleSalto parece más un Salto potente, no necesariamente un "Golpe"
     }
     else if (actionType.startsWith('Atrapar_')) baseDamage = actionState.baseDamage || 0;
     else baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || 0;
 
-    if (!actionType.startsWith('Atrapar_') && !['DobleSalto', 'Combo', 'ComboVelocidadLuz', 'Engaño', 'Arrojar', 'Furia'].includes(actionType)) {
+    // Aplicar reducción de daño por partes rotas para acciones de tipo "Golpe" individuales
+    if (golpeDamageReductionFromBreaks > 0) {
+        if (['golpe', 'velocidad_luz', 'embestir', 'cargar'].includes(actionKey) && 
+            !['Combo', 'ComboVelocidadLuz'].includes(actionType)) { // Evitar doble aplicación para combos
+            baseDamage = Math.max(0, baseDamage - golpeDamageReductionFromBreaks);
+            logMessage(`(Atacante con partes rotas: -${golpeDamageReductionFromBreaks} Daño a ${actionType})`);
+        }
+    }
+
+    // Aplicar bonos/malus de 7S y PV del atacante DESPUÉS de la reducción por partes rotas
+    if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') {
+        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño)`); }
+        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño)`); }
+    }
+    else if (actionType === 'Combo') {
+        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño/golpe)`); }
+        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño/golpe)`); }
+    }
+    else if (actionType === 'ComboVelocidadLuz') {
+        if (attacker.stats.septimoSentidoActivo) { baseDamage += 10; logMessage(`(7S Atacante: +10 Daño/golpe)`); }
+        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 10); logMessage(`(PV Atacante: -10 Daño/golpe)`); }
+    }
+    else if (actionType === 'DobleSalto') {
+        if (attacker.stats.septimoSentidoActivo) { baseDamage += 30; logMessage(`(7S Atacante: +30 Daño)`); }
+        if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 20); logMessage(`(PV Atacante: -20 Daño)`); }
+    }
+    else if (!actionType.startsWith('Atrapar_') && !['DobleSalto', 'Combo', 'ComboVelocidadLuz', 'Engaño', 'Arrojar', 'Furia'].includes(actionType)) {
         if (attacker.stats.septimoSentidoActivo && ['golpe', 'lanzar_obj', 'salto', 'velocidad_luz', 'embestir', 'cargar'].includes(actionKey)) {
             baseDamage += 30; logMessage(`(7S Atacante: +30 Daño a ${actionType})`);
         }
@@ -1141,7 +1275,15 @@ function App() {
             targetMax = max;
             if (rollVal >= targetMin && rollVal <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'countered';
-                damageToAttacker = Math.floor((defender.actions.golpe || 30) / 2);
+                // Aplicar reducción de daño al contraataque si el DEFENSOR (quien contraataca) tiene partes rotas
+                let counterDamage = Math.floor((defender.actions.golpe || 30) / 2);
+                const defenderBreakPenalties = defender.stats.statPenaltiesFromBreaks || { golpeDamageReduction: 0 };
+                const counterDamageReduction = defenderBreakPenalties.golpeDamageReduction || 0;
+                if (counterDamageReduction > 0) {
+                    counterDamage = Math.max(0, counterDamage - counterDamageReduction);
+                    logMessage(`(Contraataque del Defensor debilitado por partes rotas: -${counterDamageReduction} Daño)`);
+                }
+                damageToAttacker = counterDamage;
             } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'failure'; }
         }
     }
@@ -1230,7 +1372,7 @@ function App() {
 
     if (actionCompletedName) {
       console.log(`Acción ${actionCompletedName} completada. Actualizando historial y pasando turno.`);
-      updatePlayerStatsAndHistory(attackerId, attackerStatChangesOnComplete, actionCompletedName);
+      updatePlayerStatsAndHistory(attacker.id, attackerStatChangesOnComplete, actionCompletedName);
       setActionState(prev => ({ ...prev, active: false, type: null, stage: null, currentHit: 0, totalHits:0, baseDamagePerHit:0, blockDamagePA:0, hitsLandedThisTurn: 0, damageDealtThisTurn: 0, furiaHitsLandedInSequence: 0, currentComboHit: 0, currentDefensePenalty: 0 }));
       if (!isGameOverByThisHit) {
           const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
@@ -1246,6 +1388,11 @@ function App() {
     if (!actionState.active || actionState.type !== 'Atrapar' || actionState.stage !== 'awaiting_followup') { return; }
     const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
+
+    if (!attacker || !defender) { // Verificación crucial
+        logMessage("Error en handleAtraparFollowupSelect: Datos de jugador no cargados.");
+        return;
+    }
 
     let gameOverByFollowup = false; const selectedOption = atraparFollowupOptions.find(opt => opt.id === optionId);
     logMessage(`${attacker.name} elige seguimiento de Atrapar: ${selectedOption?.name || optionId}`);
@@ -1336,6 +1483,11 @@ function App() {
     const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
 
+    if (!attacker || !defender) { // Verificación crucial
+        logMessage("Error en handleRomperTargetSelect: Datos de jugador no cargados.");
+        return;
+    }
+
     const wasAtraparFollowup = actionState.type === 'Atrapar_Opcion6';
     const actionTypeForHistory = wasAtraparFollowup ? 'atrapar' : 'romper';
     let attackerStatChanges = {};
@@ -1363,53 +1515,84 @@ function App() {
     }
   };
 
+  const checkGameOver = () => {
+    if (!player1Data || !player2Data) return false; // No hay juego si no hay datos de jugadores
 
-  return (
-    <div className="app-container">
-      {actionState.stage === 'game_over' ? (
-        <div className="game-over-screen">
-          <h2>¡Fin del Combate!</h2>
-          <button onClick={handlePlayAgain} className="play-again-button">Jugar de Nuevo</button>
-          <GameLog log={gameLog} />
-        </div>
-      ) : (
+    const p1Dead = player1Data.stats.currentPV <= 0;
+    const p2Dead = player2Data.stats.currentPV <= 0;
+    return p1Dead || p2Dead;
+  };
+
+  // RENDER LOGIC
+  if (gameView === 'characterSelection') {
+    return (
+      <div className="app-container">
+        <CharacterSelection
+          personajes={CABALLEROS_DISPONIBLES}
+          onStartCombat={handleCombatStart}
+        />
+      </div>
+    );
+  }
+
+  if (gameView === 'combat' && player1Data && player2Data) {
+    const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
+    const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
+    const isGameOver = checkGameOver();
+
+    return (
+      <div className="app-container">
         <div className="game-container">
           <PlayerArea
-            characterData={player1Data}
+            playerData={player1Data}
             opponentData={player2Data}
-            isCurrentPlayer={currentPlayerId === player1Data.id}
             handleActionInitiate={handleActionInitiate}
-            actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
+            handleResistenciaChoice={handleResistenciaChoice}
+            isCurrentPlayer={currentPlayerId === player1Data.id && !isGameOver}
+            actionState={actionState}
             handleAtraparFollowupSelect={handleAtraparFollowupSelect}
             handleRomperTargetSelect={handleRomperTargetSelect}
-            handleResistenciaChoice={handleResistenciaChoice}
-            atraparOptions={atraparFollowupOptions}
+            selectedActionName={actionState.active && actionState.attackerId === player1Data.id ? actionState.type : null}
             getActionConcentrationRequirement={getActionConcentrationRequirement}
-            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION} // DESCOMENTADO
+            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+            atraparOptions={atraparFollowupOptions}
           />
-          <div className="center-column">
-             <ArenaDisplay event={arenaEvent} />
-             <GameLog log={gameLog} />
-          </div>
-           <PlayerArea
-            characterData={player2Data}
-            opponentData={player1Data}
-            isCurrentPlayer={currentPlayerId === player2Data.id}
-            handleActionInitiate={handleActionInitiate}
+          <ArenaDisplay
+            attacker={attacker}
+            defender={defender}
             actionState={actionState}
             handleDefenseSelection={handleDefenseSelection}
+            currentPlayerId={currentPlayerId}
+            gameLog={gameLog}
+            arenaEvent={arenaEvent}
+            isGameOver={isGameOver}
+            onPlayAgain={handlePlayAgain}
+            atraparFollowupOptions={atraparFollowupOptions}
+          />
+          <PlayerArea
+            playerData={player2Data}
+            opponentData={player1Data}
+            handleActionInitiate={handleActionInitiate}
+            handleDefenseSelection={handleDefenseSelection}
+            handleResistenciaChoice={handleResistenciaChoice}
+            isCurrentPlayer={currentPlayerId === player2Data.id && !isGameOver}
+            actionState={actionState}
             handleAtraparFollowupSelect={handleAtraparFollowupSelect}
             handleRomperTargetSelect={handleRomperTargetSelect}
-            handleResistenciaChoice={handleResistenciaChoice}
-            atraparOptions={atraparFollowupOptions}
+            selectedActionName={actionState.active && actionState.attackerId === player2Data.id ? actionState.type : null}
+            isRightAligned
             getActionConcentrationRequirement={getActionConcentrationRequirement}
-            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION} // DESCOMENTADO
+            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+            atraparOptions={atraparFollowupOptions}
           />
         </div>
-      )}
-    </div>
-  )
+        <GameLog log={gameLog} />
+      </div>
+    );
+  }
+  // Fallback si gameView no es ni 'characterSelection' ni 'combat', o si los datos no están listos para 'combat'
+  return <div className="app-container">Cargando la aplicación...</div>;
 }
 
-export default App
+export default App;

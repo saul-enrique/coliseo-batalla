@@ -5,7 +5,7 @@ import StatBar from './StatBar';
 import './PlayerArea.css'; // Ensure CSS path is correct
 
 function PlayerArea({
-  characterData,
+  playerData,
   opponentData,
   isCurrentPlayer,
   handleActionInitiate,
@@ -20,9 +20,9 @@ function PlayerArea({
 }) {
 
   const renderActionSelection = () => {
-    const currentConcentrationLevel = characterData.stats.concentrationLevel || 0;
+    const currentConcentrationLevel = playerData.stats.concentrationLevel || 0;
 
-    const level0Actions = Object.entries(characterData.actions)
+    const level0Actions = Object.entries(playerData.actions)
       .filter(([actionName, actionValue]) =>
         getActionConcentrationRequirement(actionName) === 0 &&
         actionValue &&
@@ -31,12 +31,12 @@ function PlayerArea({
         actionName !== 'golpear_puntos_vitales'
       );
 
-    const level1Actions = Object.entries(characterData.actions)
+    const level1Actions = Object.entries(playerData.actions)
       .filter(([actionName, actionValue]) =>
         getActionConcentrationRequirement(actionName) === 1 && actionValue
       );
 
-    const level2Actions = Object.entries(characterData.actions)
+    const level2Actions = Object.entries(playerData.actions)
       .filter(([actionName, actionValue]) =>
         getActionConcentrationRequirement(actionName) === 2 && actionValue
       );
@@ -46,7 +46,7 @@ function PlayerArea({
         let isDisabled = false;
         let buttonTitle = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
         let buttonText = buttonTitle;
-        const history = characterData.stats.actionHistory || [];
+        const history = playerData.stats.actionHistory || [];
         let isAlternationBlocked = false; // Flag para saber si el bloqueo es por alternancia
 
         // --- Start Disabling Logic ---
@@ -61,27 +61,27 @@ function PlayerArea({
         } else if (['fortaleza', 'agilidad', 'destreza', 'resistencia'].includes(actionName)) {
             const availableKey = `${actionName}Available`;
             const usedKey = `${actionName}UsedThisCombat`;
-            if (characterData.stats[availableKey]) {
+            if (playerData.stats[availableKey]) {
                 isDisabled = true;
                 buttonTitle = `Bono ${buttonTitle} ya activo`;
-            } else if (characterData.stats[usedKey]) {
+            } else if (playerData.stats[usedKey]) {
                 isDisabled = true;
                 buttonTitle = `${buttonTitle} ya usada este combate`;
             }
-        } else if (actionName === 'lanzamientos_sucesivos' && characterData.stats.lanzamientosSucesivosUsedThisCombat) {
+        } else if (actionName === 'lanzamientos_sucesivos' && playerData.stats.lanzamientosSucesivosUsedThisCombat) {
           isDisabled = true; buttonTitle = "Lanzamientos Sucesivos ya usado";
-        } else if (actionName === 'combo_velocidad_luz' && characterData.stats.comboVelocidadLuzUsedThisCombat) {
+        } else if (actionName === 'combo_velocidad_luz' && playerData.stats.comboVelocidadLuzUsedThisCombat) {
           isDisabled = true; buttonTitle = "Combo Velocidad Luz ya usado";
-        } else if (actionName === 'doble_salto' && characterData.stats.dobleSaltoUsedThisCombat) {
+        } else if (actionName === 'doble_salto' && playerData.stats.dobleSaltoUsedThisCombat) {
           isDisabled = true; buttonTitle = "Doble Salto ya usado este combate";
-        } else if (actionName === 'arrojar' && characterData.stats.arrojarUsedThisCombat) {
+        } else if (actionName === 'arrojar' && playerData.stats.arrojarUsedThisCombat) {
           isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
-        } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) {
+        } else if (actionName === 'furia' && playerData.stats.furiaUsedThisCombat) {
           isDisabled = true; buttonTitle = "Furia ya usada este combate";
-        } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) {
+        } else if (actionName === 'apresar' && playerData.stats.apresarUsedThisCombat) {
           isDisabled = true; buttonTitle = "Apresar ya usado este combate";
         } else if (actionName === 'quebrar') {
-            if (characterData.stats.quebrarUsedThisCombat) {
+            if (playerData.stats.quebrarUsedThisCombat) {
                 isDisabled = true; buttonTitle = "Quebrar ya usado este combate";
             } else if (opponentData && opponentData.stats.currentPA <= 0) {
                 isDisabled = true; buttonTitle = "La armadura del rival ya está destruida";
@@ -147,7 +147,7 @@ function PlayerArea({
         }
 
         if (!isDisabled && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION(actionName)) {
-            const history = characterData.stats.actionHistory || [];
+            const history = playerData.stats.actionHistory || [];
             const actionDisplayName = actionName.replace(/_/g, ' ');
             if (history.length > 0 && history[0] === actionName) {
                 isDisabled = true;
@@ -167,12 +167,12 @@ function PlayerArea({
             }
             buttonText += ' (Alt.)';
         } else if (disabledCondition) {
-             if (actionName === 'golpear_puntos_vitales' && characterData.stats.puntosVitalesUsadoPorAtacante) buttonText += ' (Usada)';
-             else if (actionName === 'alcanzar_septimo_sentido' && (!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo)) buttonText += ' (Intentado)';
+             if (actionName === 'golpear_puntos_vitales' && playerData.stats.puntosVitalesUsadoPorAtacante) buttonText += ' (Usada)';
+             else if (actionName === 'alcanzar_septimo_sentido' && (!playerData.stats.puntosVitalesGolpeados && playerData.stats.septimoSentidoIntentado && !playerData.stats.septimoSentidoActivo)) buttonText += ' (Intentado)';
              // No añadir (Alt.) si la deshabilitación no es por alternancia
         }
 
-         if (actionName === 'alcanzar_septimo_sentido' && characterData.stats.puntosVitalesGolpeados) {
+         if (actionName === 'alcanzar_septimo_sentido' && playerData.stats.puntosVitalesGolpeados) {
             buttonText = "Recuperarse (7ºS)"; // Texto base para este caso
             if (isAlternationBlockedForSpecial) buttonText += ' (Alt.)'; // Añadir (Alt.) si aplica
         }
@@ -189,11 +189,11 @@ function PlayerArea({
             <h4>Acciones</h4>
             <div className="action-buttons">
               {renderButtons(level0Actions, 0)}
-              {characterData.actions.concentracion && (() => {
+              {playerData.actions.concentracion && (() => {
                  const props = getSpecialButtonProps(
                     'concentracion',
                     "Concentrarse (Nivel 1)",
-                    characterData.stats.concentrationLevel >= 2,
+                    playerData.stats.concentrationLevel >= 2,
                     "Ya estás en Concentración Máxima"
                  );
                  return (
@@ -209,14 +209,14 @@ function PlayerArea({
                  );
               })()}
 
-              {characterData.actions.golpear_puntos_vitales && (() => {
+              {playerData.actions.golpear_puntos_vitales && (() => {
                   const props = getSpecialButtonProps(
                     'golpear_puntos_vitales',
                     "Golpear Puntos Vitales del Rival",
-                    characterData.stats.puntosVitalesUsadoPorAtacante ||
+                    playerData.stats.puntosVitalesUsadoPorAtacante ||
                     (opponentData && opponentData.stats.septimoSentidoActivo) ||
                     (opponentData && opponentData.stats.puntosVitalesGolpeados),
-                    characterData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
+                    playerData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
                     (opponentData && opponentData.stats.septimoSentidoActivo) ? "El rival está protegido por su Séptimo Sentido" :
                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" : "Golpear Puntos Vitales del Rival"
                   );
@@ -233,14 +233,14 @@ function PlayerArea({
                   );
               })()}
 
-              {characterData.actions.alcanzar_septimo_sentido &&
-               (!characterData.stats.septimoSentidoActivo || characterData.stats.puntosVitalesGolpeados) && (() => {
+              {playerData.actions.alcanzar_septimo_sentido &&
+               (!playerData.stats.septimoSentidoActivo || playerData.stats.puntosVitalesGolpeados) && (() => {
                  const props = getSpecialButtonProps(
                     'alcanzar_septimo_sentido',
-                    characterData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" : "Intentar alcanzar el Séptimo Sentido",
-                    (!characterData.stats.puntosVitalesGolpeados &&
-                       characterData.stats.septimoSentidoIntentado &&
-                       !characterData.stats.septimoSentidoActivo),
+                    playerData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" : "Intentar alcanzar el Séptimo Sentido",
+                    (!playerData.stats.puntosVitalesGolpeados &&
+                       playerData.stats.septimoSentidoIntentado &&
+                       !playerData.stats.septimoSentidoActivo),
                     "Ya intentaste alcanzar el 7º Sentido y fallaste este combate"
                  );
                  return (
@@ -265,13 +265,13 @@ function PlayerArea({
             <div className="action-buttons">
               {renderButtons(level1Actions, 1)}
             </div>
-            {characterData.actions.concentracion && (
+            {playerData.actions.concentracion && (
                  <div className="action-buttons" style={{marginTop: '15px'}}>
                     {(() => {
                         const props = getSpecialButtonProps(
                             'concentracion',
                             "Concentrarse de Nuevo (Nivel 2)",
-                            characterData.stats.concentrationLevel >= 2,
+                            playerData.stats.concentrationLevel >= 2,
                             "Ya estás en Concentración Máxima"
                         );
                         // El texto se maneja dentro de getSpecialButtonProps para "Concentrarse de Nuevo"
@@ -342,7 +342,7 @@ function PlayerArea({
              {canEsquivar && (
                  <button className="defense-button" onClick={() => handleDefenseSelection('esquivar')}>Esquivar</button>
              )}
-             {canEsquivar && characterData.stats.agilidadAvailable && (
+             {canEsquivar && playerData.stats.agilidadAvailable && (
                  <button className="defense-button agilidad-boost" onClick={() => handleDefenseSelection('esquivar_agilidad')}>
                  Esquivar con Agilidad (+3)
                  </button>
@@ -350,7 +350,7 @@ function PlayerArea({
              {canBlock && (
                  <button className="defense-button" onClick={() => handleDefenseSelection('bloquear')}>Bloquear</button>
              )}
-             {canBlock && characterData.stats.fortalezaAvailable && (
+             {canBlock && playerData.stats.fortalezaAvailable && (
                  <button className="defense-button fortaleza-boost" onClick={() => handleDefenseSelection('bloquear_fortaleza')}>
                  Bloquear con Fortaleza (+3)
                  </button>
@@ -358,7 +358,7 @@ function PlayerArea({
              {canCounter && (
                  <button className="defense-button" onClick={() => handleDefenseSelection('contraatacar')}>Contraatacar</button>
              )}
-             {canCounter && characterData.stats.destrezaAvailable && (
+             {canCounter && playerData.stats.destrezaAvailable && (
                  <button className="defense-button destreza-boost" onClick={() => handleDefenseSelection('contraatacar_destreza')}>
                  Contraatacar con Destreza (+2)
                  </button>
@@ -380,7 +380,7 @@ function PlayerArea({
                 let isLlaveAlternationBlocked = false;
                 let llaveAlternationTitle = "";
                 if (option.id === 'atrapar_op5' && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('llave')) {
-                    const history = characterData.stats.actionHistory || [];
+                    const history = playerData.stats.actionHistory || [];
                     if (history.length > 0 && history[0] === 'llave') {
                         isLlaveAlternationBlocked = true;
                         llaveAlternationTitle = `Alternancia: No puedes usar Llave ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
@@ -458,36 +458,36 @@ function PlayerArea({
   return (
     <div className={`player-area ${isCurrentPlayer ? 'current-player' : ''}`}>
       <div className="character-info">
-        <h3>{characterData.name}</h3>
+        <h3>{playerData.name}</h3>
         <div className="stats">
-          <StatBar label="PV" currentValue={characterData.stats.currentPV} maxValue={characterData.stats.pv_max} color="#e74c3c" />
-          <StatBar label="PA" currentValue={characterData.stats.currentPA} maxValue={characterData.stats.pa_max} color="#3498db" />
-          <StatBar label="PC" currentValue={characterData.stats.currentPC} maxValue={characterData.stats.pc_max} color="#f1c40f" />
+          <StatBar label="PV" currentValue={playerData.stats.currentPV} maxValue={playerData.stats.pv_max} color="#e74c3c" />
+          <StatBar label="PA" currentValue={playerData.stats.currentPA} maxValue={playerData.stats.pa_max} color="#3498db" />
+          <StatBar label="PC" currentValue={playerData.stats.currentPC} maxValue={playerData.stats.pc_max} color="#f1c40f" />
         </div>
         <div className="status-indicators-container">
-            {characterData.stats.concentrationLevel === 1 && <div className="status-indicator concentrated-1">Concentrado (Nivel 1)</div>}
-            {characterData.stats.concentrationLevel === 2 && <div className="status-indicator concentrated-2">Concentrado (Nivel 2)</div>}
-            {characterData.stats.fortalezaAvailable && <div className="status-indicator fortaleza">Fortaleza (+3 Bloq) Lista</div>}
-            {characterData.stats.agilidadAvailable && <div className="status-indicator agilidad">Agilidad (+3 Esq) Lista</div>}
-            {characterData.stats.destrezaAvailable && <div className="status-indicator destreza">Destreza (+2 ContrAtq) Lista</div>}
-            {characterData.stats.resistenciaAvailable && <div className="status-indicator resistencia">Resistencia (+2 Ataque Llave/Lanz.) Lista</div>}
-            {characterData.stats.septimoSentidoActivo && <div className="status-indicator septimo-sentido">¡SÉPTIMO SENTIDO ALCANZADO!</div>}
-            {characterData.stats.puntosVitalesGolpeados && <div className="status-indicator puntos-vitales-afectado">Puntos Vitales Afectados</div>}
+            {playerData.stats.concentrationLevel === 1 && <div className="status-indicator concentrated-1">Concentrado (Nivel 1)</div>}
+            {playerData.stats.concentrationLevel === 2 && <div className="status-indicator concentrated-2">Concentrado (Nivel 2)</div>}
+            {playerData.stats.fortalezaAvailable && <div className="status-indicator fortaleza">Fortaleza (+3 Bloq) Lista</div>}
+            {playerData.stats.agilidadAvailable && <div className="status-indicator agilidad">Agilidad (+3 Esq) Lista</div>}
+            {playerData.stats.destrezaAvailable && <div className="status-indicator destreza">Destreza (+2 ContrAtq) Lista</div>}
+            {playerData.stats.resistenciaAvailable && <div className="status-indicator resistencia">Resistencia (+2 Ataque Llave/Lanz.) Lista</div>}
+            {playerData.stats.septimoSentidoActivo && <div className="status-indicator septimo-sentido">¡SÉPTIMO SENTIDO ALCANZADO!</div>}
+            {playerData.stats.puntosVitalesGolpeados && <div className="status-indicator puntos-vitales-afectado">Puntos Vitales Afectados</div>}
         </div>
       </div>
 
       <div className="action-defense-area">
           {isCurrentPlayer ? (
-            actionState.stage === 'awaiting_resistencia_choice' && actionState.attackerId === characterData.id ? renderResistenciaChoice()
-            : actionState.stage === 'awaiting_followup' && actionState.attackerId === characterData.id ? renderAtraparFollowup()
-            : actionState.stage === 'awaiting_romper_target' && actionState.attackerId === characterData.id ? renderRomperTarget()
-            : actionState.active && actionState.attackerId === characterData.id && actionState.stage?.startsWith('awaiting_defense')
+            actionState.stage === 'awaiting_resistencia_choice' && actionState.attackerId === playerData.id ? renderResistenciaChoice()
+            : actionState.stage === 'awaiting_followup' && actionState.attackerId === playerData.id ? renderAtraparFollowup()
+            : actionState.stage === 'awaiting_romper_target' && actionState.attackerId === playerData.id ? renderRomperTarget()
+            : actionState.active && actionState.attackerId === playerData.id && actionState.stage?.startsWith('awaiting_defense')
                 ? <div className="waiting-message">
                     Esperando defensa del rival ({actionState.type === 'Arrojar' || actionState.type === 'Furia' ? `Ataque ${actionState.currentHit}/${actionState.totalHits}` : actionState.type?.replace(/_/g, ' ') || 'Acción Actual'})...
                   </div>
             : renderActionSelection()
           ) : (
-            actionState.active && actionState.defenderId === characterData.id && actionState.stage?.startsWith('awaiting_defense') ? renderDefenseSelection()
+            actionState.active && actionState.defenderId === playerData.id && actionState.stage?.startsWith('awaiting_defense') ? renderDefenseSelection()
             : <div className="waiting-message">Esperando turno del rival...</div>
           )}
       </div>
