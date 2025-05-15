@@ -160,6 +160,27 @@ body {
   opacity: 0.6; /* Slightly faded */
 }
 
+/* --- NUEVO: Estilo para botones bloqueados por alternancia --- */
+.action-button-alternation-blocked {
+  /* Estos estilos se aplicarán ADEMÁS de :disabled, pero serán más específicos */
+  /* si el botón está deshabilitado POR ALTERNANCIA */
+  background: linear-gradient(to bottom, #4a2a2a, #301010) !important; /* Rojo oscuro */
+  border-color: #803030 !important; /* Borde rojo más oscuro */
+  color: #aaa !important; /* Texto grisáceo, menos prominente que el disabled normal */
+  opacity: 0.5 !important; /* Más opaco que el disabled normal para diferenciar */
+  cursor: not-allowed; /* Ya debería estar por :disabled */
+}
+
+.action-button-alternation-blocked:hover {
+  /* Mantenemos el estilo de alternancia incluso en hover, sin el brillo dorado */
+  background: linear-gradient(to bottom, #5a3a3a, #402020) !important;
+  border-color: #904040 !important;
+  color: #bbb !important;
+  box-shadow: 0 0 5px rgba(200, 100, 100, 0.4) !important; /* Un leve brillo rojizo */
+  transform: none !important; /* Sin efecto de elevación */
+}
+
+
 /* --- Specific Button Type Styles (Boosted/Choice) --- */
 
 /* Style for Fortaleza Boosted Block Button */

@@ -1,4 +1,4 @@
-// PlayerArea.jsx MODIFICADO para UI de Regla de Alternancia
+// PlayerArea.jsx MODIFICADO para UI de Regla de Alternancia y Estilo Condicional
 
 import React from 'react';
 import StatBar from './StatBar';
@@ -47,12 +47,11 @@ function PlayerArea({
         let buttonTitle = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
         let buttonText = buttonTitle;
         const history = characterData.stats.actionHistory || [];
+        let isAlternationBlocked = false; // Flag para saber si el bloqueo es por alternancia
 
         // --- Start Disabling Logic ---
 
         // 1. Specific game state/cooldown checks (non-alternation related)
-        // These checks run first. If any of these disable the button,
-        // the alternation check below won't override it to enabled.
         if (actionName === 'romper') {
           const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
           if (allOpponentPartsMaxBroken) {
@@ -89,34 +88,42 @@ function PlayerArea({
             }
         }
 
-        // 2. New Alternation Rule Check (only if not already disabled and if IS_ACTION_ALTERNATION_EXCEPTION is available)
+        // 2. New Alternation Rule Check
         if (!isDisabled && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION(actionName)) {
           const actionDisplayName = actionName.replace(/_/g, ' ');
           if (history.length > 0 && history[0] === actionName) {
             isDisabled = true;
+            isAlternationBlocked = true; // Marcar que el bloqueo es por alternancia
             buttonTitle = `Alternancia: No puedes repetir ${actionDisplayName} ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
           } else if (history.length > 1 && history[1] === actionName) {
             isDisabled = true;
+            isAlternationBlocked = true; // Marcar que el bloqueo es por alternancia
             buttonTitle = `Alternancia: 2 acciones diferentes antes de repetir ${actionDisplayName}. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
           }
         }
         // --- End Disabling Logic ---
 
+        // Construir clases CSS
+        let buttonClassName = `action-button`;
+        if (levelRequired === 2) buttonClassName += ' concentrated-action-lvl2';
+        if (actionName === 'quebrar') buttonClassName += ' quebrar-button';
+        if (isAlternationBlocked) { // Aplicar clase si está bloqueado por alternancia
+            buttonClassName += ' action-button-alternation-blocked';
+        }
 
         // Update buttonText based on final isDisabled and buttonTitle
         if (isDisabled) {
-            if (buttonTitle.toLowerCase().includes("alternancia")) buttonText += " (Alt.)";
+            if (isAlternationBlocked) buttonText += " (Alt.)"; // Más específico para alternancia
             else if (buttonTitle.includes("usad")) buttonText += " (Usada)";
             else if (buttonTitle.includes("activ")) buttonText += " (Activa)";
             else if (buttonTitle.includes("rotas al máximo")) buttonText += " (MAX)";
             else if (buttonTitle.includes("armadura del rival ya está destruida")) buttonText += " (S/A)";
         }
 
-
         return (
           <button
             key={`${actionName}-lvl${levelRequired}`}
-            className={`action-button ${levelRequired === 2 ? 'concentrated-action-lvl2' : ''} ${actionName === 'quebrar' ? 'quebrar-button' : ''}`}
+            className={buttonClassName} // Usar la clase construida
             onClick={() => handleActionInitiate(actionName)}
             disabled={isDisabled}
             title={buttonTitle}
@@ -127,6 +134,54 @@ function PlayerArea({
       });
     };
 
+    // Helper para construir clases y título para botones especiales (Concentración, etc.)
+    const getSpecialButtonProps = (actionName, baseTitle, disabledCondition, disabledTextForCondition) => {
+        let isDisabled = disabledCondition;
+        let buttonTitle = baseTitle;
+        let buttonClassName = "action-button";
+        let buttonText = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
+        let isAlternationBlockedForSpecial = false;
+
+        if (disabledCondition) {
+            buttonTitle = disabledTextForCondition;
+        }
+
+        if (!isDisabled && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION(actionName)) {
+            const history = characterData.stats.actionHistory || [];
+            const actionDisplayName = actionName.replace(/_/g, ' ');
+            if (history.length > 0 && history[0] === actionName) {
+                isDisabled = true;
+                isAlternationBlockedForSpecial = true;
+                buttonTitle = `Alternancia: No puedes repetir ${actionDisplayName} ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
+            } else if (history.length > 1 && history[1] === actionName) {
+                isDisabled = true;
+                isAlternationBlockedForSpecial = true;
+                buttonTitle = `Alternancia: 2 acciones diferentes antes de repetir ${actionDisplayName}. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
+            }
+        }
+
+        if (isAlternationBlockedForSpecial) {
+            buttonClassName += ' action-button-alternation-blocked';
+            if (actionName === 'concentracion' && currentConcentrationLevel === 1) { // Específico para "Concentrarse de Nuevo"
+                 buttonText = "Concentrarse de Nuevo";
+            }
+            buttonText += ' (Alt.)';
+        } else if (disabledCondition) {
+             if (actionName === 'golpear_puntos_vitales' && characterData.stats.puntosVitalesUsadoPorAtacante) buttonText += ' (Usada)';
+             else if (actionName === 'alcanzar_septimo_sentido' && (!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo)) buttonText += ' (Intentado)';
+             // No añadir (Alt.) si la deshabilitación no es por alternancia
+        }
+
+         if (actionName === 'alcanzar_septimo_sentido' && characterData.stats.puntosVitalesGolpeados) {
+            buttonText = "Recuperarse (7ºS)"; // Texto base para este caso
+            if (isAlternationBlockedForSpecial) buttonText += ' (Alt.)'; // Añadir (Alt.) si aplica
+        }
+
+
+        return { isDisabled, buttonTitle, buttonClassName, buttonText };
+    };
+
+
     return (
       <div className="actions-section">
         {currentConcentrationLevel === 0 && (
@@ -134,102 +189,72 @@ function PlayerArea({
             <h4>Acciones</h4>
             <div className="action-buttons">
               {renderButtons(level0Actions, 0)}
-              {characterData.actions.concentracion && (
-                 <button
-                   key="concentracion-lvl0"
-                   className="action-button"
-                   onClick={() => handleActionInitiate('concentracion')}
-                   disabled={characterData.stats.concentrationLevel >= 2 || (
-                        typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                        characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                        (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                   )}
-                   title={
-                     characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" :
-                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                     ) ? `Alternancia: No puedes usar Concentración ahora` :
-                     "Concentrarse (Nivel 1)"
-                   }
-                 >
-                   Concentración
-                   {( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                   ) ? ' (Alt.)' : ''}
-                 </button>
-               )}
+              {characterData.actions.concentracion && (() => {
+                 const props = getSpecialButtonProps(
+                    'concentracion',
+                    "Concentrarse (Nivel 1)",
+                    characterData.stats.concentrationLevel >= 2,
+                    "Ya estás en Concentración Máxima"
+                 );
+                 return (
+                     <button
+                       key="concentracion-lvl0"
+                       className={props.buttonClassName}
+                       onClick={() => handleActionInitiate('concentracion')}
+                       disabled={props.isDisabled}
+                       title={props.buttonTitle}
+                     >
+                       {props.buttonText}
+                     </button>
+                 );
+              })()}
 
-              {/* Botón Golpear Puntos Vitales */}
-              {characterData.actions.golpear_puntos_vitales && (
-                 <button
-                   key="golpear_puntos_vitales"
-                   className="action-button"
-                   onClick={() => handleActionInitiate('golpear_puntos_vitales')}
-                   disabled={
-                     characterData.stats.puntosVitalesUsadoPorAtacante ||
-                     (opponentData && opponentData.stats.septimoSentidoActivo) ||
-                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ||
-                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
-                     )
-                   }
-                   title={
-                     characterData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
-                     (opponentData && opponentData.stats.septimoSentidoActivo) ? "El rival está protegido por su Séptimo Sentido" :
-                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" :
-                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
-                     ) ? `Alternancia: No puedes usar Puntos Vitales ahora` :
-                     "Golpear Puntos Vitales del Rival"
-                   }
-                 >
-                   Puntos Vitales
-                   {characterData.stats.puntosVitalesUsadoPorAtacante ? '(Usada)' :
-                    ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
-                   ) ? ' (Alt.)' : ''}
-                 </button>
-               )}
+              {characterData.actions.golpear_puntos_vitales && (() => {
+                  const props = getSpecialButtonProps(
+                    'golpear_puntos_vitales',
+                    "Golpear Puntos Vitales del Rival",
+                    characterData.stats.puntosVitalesUsadoPorAtacante ||
+                    (opponentData && opponentData.stats.septimoSentidoActivo) ||
+                    (opponentData && opponentData.stats.puntosVitalesGolpeados),
+                    characterData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
+                    (opponentData && opponentData.stats.septimoSentidoActivo) ? "El rival está protegido por su Séptimo Sentido" :
+                    (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" : "Golpear Puntos Vitales del Rival"
+                  );
+                  return (
+                     <button
+                       key="golpear_puntos_vitales"
+                       className={props.buttonClassName}
+                       onClick={() => handleActionInitiate('golpear_puntos_vitales')}
+                       disabled={props.isDisabled}
+                       title={props.buttonTitle}
+                     >
+                       {props.buttonText}
+                     </button>
+                  );
+              })()}
 
-              {/* Botón Alcanzar Séptimo Sentido / Recuperarse */}
               {characterData.actions.alcanzar_septimo_sentido &&
-               (!characterData.stats.septimoSentidoActivo || characterData.stats.puntosVitalesGolpeados) &&
-                 <button
-                   key="alcanzar_septimo_sentido_o_recuperar"
-                   className="action-button"
-                   onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
-                   disabled={
-                       (!characterData.stats.puntosVitalesGolpeados &&
+               (!characterData.stats.septimoSentidoActivo || characterData.stats.puntosVitalesGolpeados) && (() => {
+                 const props = getSpecialButtonProps(
+                    'alcanzar_septimo_sentido',
+                    characterData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" : "Intentar alcanzar el Séptimo Sentido",
+                    (!characterData.stats.puntosVitalesGolpeados &&
                        characterData.stats.septimoSentidoIntentado &&
-                       !characterData.stats.septimoSentidoActivo) ||
-                       ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
-                         characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                         (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
-                       )
-                   }
-                   title={
-                     characterData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" :
-                     (characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? "Ya intentaste alcanzar el 7º Sentido y fallaste este combate" :
-                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
-                     ) ? `Alternancia: No puedes usar Alcanzar 7º Sentido ahora` :
-                     "Intentar alcanzar el Séptimo Sentido"
-                   }
-                 >
-                   {characterData.stats.puntosVitalesGolpeados ? "Recuperarse (7ºS)" : "Alcanzar 7º Sentido"}
-                   {(!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? ' (Intentado)' :
-                    ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
-                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                       (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
-                   ) ? ' (Alt.)' : ''}
-                 </button>
-               }
+                       !characterData.stats.septimoSentidoActivo),
+                    "Ya intentaste alcanzar el 7º Sentido y fallaste este combate"
+                 );
+                 return (
+                     <button
+                       key="alcanzar_septimo_sentido_o_recuperar"
+                       className={props.buttonClassName}
+                       onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
+                       disabled={props.isDisabled}
+                       title={props.buttonTitle}
+                     >
+                       {props.buttonText}
+                     </button>
+                 );
+               })()}
             </div>
           </>
         )}
@@ -242,29 +267,26 @@ function PlayerArea({
             </div>
             {characterData.actions.concentracion && (
                  <div className="action-buttons" style={{marginTop: '15px'}}>
-                    <button
-                        key="concentracion-again"
-                        className="action-button concentrate-again-button"
-                        onClick={() => handleActionInitiate('concentracion')}
-                        disabled={characterData.stats.concentrationLevel >= 2 || (
-                            typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                            characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                            (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                        )}
-                        title={
-                            characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" :
-                            ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                              characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                              (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                            ) ? `Alternancia: No puedes usar Concentración ahora` :
-                            "Concentrarse de Nuevo (Nivel 2)"}
-                    >
-                        Concentrarse de Nuevo
-                        {( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
-                            characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
-                            (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
-                        ) ? ' (Alt.)' : ''}
-                    </button>
+                    {(() => {
+                        const props = getSpecialButtonProps(
+                            'concentracion',
+                            "Concentrarse de Nuevo (Nivel 2)",
+                            characterData.stats.concentrationLevel >= 2,
+                            "Ya estás en Concentración Máxima"
+                        );
+                        // El texto se maneja dentro de getSpecialButtonProps para "Concentrarse de Nuevo"
+                        return (
+                            <button
+                                key="concentracion-again"
+                                className={`${props.buttonClassName} concentrate-again-button`}
+                                onClick={() => handleActionInitiate('concentracion')}
+                                disabled={props.isDisabled}
+                                title={props.buttonTitle}
+                            >
+                                {props.buttonText}
+                            </button>
+                        );
+                    })()}
                 </div>
             )}
           </>
@@ -276,7 +298,6 @@ function PlayerArea({
             <div className="action-buttons">
               {renderButtons(level2Actions, 2)}
             </div>
-            {/* No hay botón para concentrarse desde Nivel 2 a Nivel 3 */}
           </>
         )}
       </div>
@@ -356,34 +377,34 @@ function PlayerArea({
                 const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
                 const isRomperMejoradoDisabled = option.id === 'atrapar_op6' && allOpponentPartsMaxBroken;
 
-                // Check alternation for 'Llave Mejorada' (atrapar_op5 which effectively is 'llave')
                 let isLlaveAlternationBlocked = false;
+                let llaveAlternationTitle = "";
                 if (option.id === 'atrapar_op5' && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('llave')) {
                     const history = characterData.stats.actionHistory || [];
-                    if ((history.length > 0 && history[0] === 'llave') || (history.length > 1 && history[1] === 'llave')) {
+                    if (history.length > 0 && history[0] === 'llave') {
                         isLlaveAlternationBlocked = true;
+                        llaveAlternationTitle = `Alternancia: No puedes usar Llave ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
+                    } else if (history.length > 1 && history[1] === 'llave') {
+                        isLlaveAlternationBlocked = true;
+                        llaveAlternationTitle = `Alternancia: 2 acciones diferentes antes de repetir Llave. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
                     }
                 }
 
                 const isButtonDisabled = isRomperMejoradoDisabled || isLlaveAlternationBlocked;
                 let buttonTitle = option.name;
                 let buttonText = option.name;
+                let buttonClassName = "action-button"; // Clase base
 
                 if (isRomperMejoradoDisabled) {
                     buttonTitle = "Todas las partes del rival están rotas al máximo"; buttonText += " (MAX)";
                 } else if (isLlaveAlternationBlocked) {
-                    const history = characterData.stats.actionHistory || [];
-                    if (history.length > 0 && history[0] === 'llave') {
-                       buttonTitle = `Alternancia: No puedes usar Llave ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
-                    } else if (history.length > 1 && history[1] === 'llave') {
-                       buttonTitle = `Alternancia: 2 acciones diferentes antes de repetir Llave. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
-                    }
+                    buttonTitle = llaveAlternationTitle; // Usar el título específico de alternancia
                     buttonText += " (Alt.)";
+                    buttonClassName += ' action-button-alternation-blocked'; // Añadir clase de alternancia
                 }
 
-
                 return (
-                  <button key={option.id} className="action-button" onClick={() => handleAtraparFollowupSelect(option.id)} disabled={isButtonDisabled} title={buttonTitle} >
+                  <button key={option.id} className={buttonClassName} onClick={() => handleAtraparFollowupSelect(option.id)} disabled={isButtonDisabled} title={buttonTitle} >
                     {buttonText}
                   </button>
                 );

@@ -1,10 +1,10 @@
-// App.jsx MODIFICADO (con regla de alternancia y console.logs para depurar)
+// App.jsx MODIFICADO (con regla de alternancia, console.logs y prop IS_ACTION_ALTERNATION_EXCEPTION descomentada)
 
 import './App.css'
 import { useState, useEffect } from 'react'
-import PlayerArea from './components/PlayerArea'
-import GameLog from './components/GameLog'
-import ArenaDisplay from './components/ArenaDisplay'
+import PlayerArea from './components/PlayerArea' // Asegúrate que la ruta a PlayerArea sea correcta
+import GameLog from './components/GameLog'       // Asegúrate que la ruta a GameLog sea correcta
+import ArenaDisplay from './components/ArenaDisplay' // Asegúrate que la ruta a ArenaDisplay sea correcta
 
 // Initial character data
 const initialPlayer1Data = {
@@ -167,11 +167,9 @@ const getActionConcentrationRequirement = (actionName) => {
     return 0;
 };
 
-// NUEVO: Define qué acciones son excepción a la regla de alternancia
+// Define qué acciones son excepción a la regla de alternancia
 const IS_ACTION_ALTERNATION_EXCEPTION = (actionName) => {
   return ['concentracion', 'fortaleza', 'agilidad', 'destreza'].includes(actionName);
-  // 'resistencia' no se considera puramente defensiva, por lo que no es excepción por defecto.
-  // Las reacciones defensivas (esquivar, etc.) no son acciones "iniciadas", por lo que no aplican aquí.
 };
 
 
@@ -220,19 +218,19 @@ function App() {
   const rollD20 = () => Math.floor(Math.random() * 20) + 1;
 
   const logMessage = (message) => {
-      console.log(message); // Keep console.log for debugging during development
+      console.log(message);
       setGameLog(prevLog => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prevLog].slice(0, 50));
   };
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // NUEVO: Helper para actualizar stats del jugador y el historial de acciones
+  // Helper para actualizar stats del jugador y el historial de acciones
   const updatePlayerStatsAndHistory = (playerId, statChanges, actionNameToLog) => {
     const setPlayerData = playerId === player1Data.id ? setPlayer1Data : setPlayer2Data;
     setPlayerData(prevData => {
         const currentActionHistory = prevData.stats.actionHistory || [];
         const newActionHistory = actionNameToLog
-            ? [actionNameToLog, ...currentActionHistory].slice(0, 3) // Guardar las últimas 3 acciones
+            ? [actionNameToLog, ...currentActionHistory].slice(0, 3)
             : currentActionHistory;
 
         return {
@@ -241,7 +239,7 @@ function App() {
                 ...prevData.stats,
                 ...statChanges,
                 actionHistory: newActionHistory,
-                lastActionType: actionNameToLog || prevData.stats.lastActionType, // Actualizar también lastActionType
+                lastActionType: actionNameToLog || prevData.stats.lastActionType,
             }
         };
     });
@@ -292,7 +290,6 @@ function App() {
         isGameOver = true;
         logMessage(`!!! ${targetData.name} ha sido derrotado !!!`);
     }
-    // Actualización de PV/PA se hace directamente con setTargetData
      setTargetData(prevData => ({
         ...prevData,
         stats: { ...prevData.stats, currentPV: finalPV, currentPA: finalPA }
@@ -324,7 +321,7 @@ function App() {
         playerStats.destrezaAvailable = false;
         playerStats.resistenciaAvailable = false;
         playerStats.lastActionType = null;
-        playerStats.actionHistory = []; // NUEVO: Resetear historial
+        playerStats.actionHistory = [];
         playerStats.septimoSentidoActivo = false;
         playerStats.septimoSentidoIntentado = false;
         playerStats.puntosVitalesGolpeados = false;
@@ -388,7 +385,6 @@ function App() {
   };
 
   const resolveRomperAttempt = (attacker, defender, partToBreak, additionalBonus = 0) => {
-      // setDefenderData no se usa aquí porque applyDamage y updatePlayerStatsAndHistory manejan la actualización
       let isGameOver = false; const partKey = partToBreak;
       const roll1Base = rollD20(); const roll1 = roll1Base + additionalBonus;
       logMessage(`Primer intento para romper ${partKey}: Tirada = ${roll1Base}${additionalBonus > 0 ? `+${additionalBonus}` : ''} = ${roll1}`);
@@ -401,9 +397,8 @@ function App() {
       const currentBreaks = defender.stats.brokenParts[partKey]; const newBreaks = currentBreaks + 1;
       const newBrokenParts = { ...defender.stats.brokenParts, [partKey]: newBreaks };
       const damagePV = 20;
-      const { gameOver } = applyDamage(defender.id, damagePV, 'directPV'); // applyDamage actualiza PV/PA del defender
+      const { gameOver } = applyDamage(defender.id, damagePV, 'directPV');
       isGameOver = gameOver;
-      // Actualizar brokenParts del defensor
       const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
       setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, brokenParts: newBrokenParts } }));
 
@@ -481,7 +476,6 @@ function App() {
       let totalDamageToAttacker = 0;
       for (let throwNumber = 1; throwNumber <= 3; throwNumber++) {
           if (overallGameOver) break;
-          // Obtener los datos más recientes del defensor en cada iteración
           const currentDefenderData = defender.id === player1Data.id ? player1Data : player2Data;
           const throwResult = await resolveSingleLanzamiento(attacker, currentDefenderData, throwNumber, initialBonus);
           overallGameOver = throwResult.gameOver;
@@ -499,7 +493,6 @@ function App() {
   const handleActionInitiate = async (actionName) => {
     const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
     const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
-    // setAttackerData se usará a través de updatePlayerStatsAndHistory
 
     console.log('Acción iniciada:', actionName, "por", attacker.name);
 
@@ -508,7 +501,6 @@ function App() {
         return;
     }
 
-    // --- NUEVA REGLA DE ALTERNANCIA ---
     if (!IS_ACTION_ALTERNATION_EXCEPTION(actionName)) {
       const history = attacker.stats.actionHistory || [];
       const actionDisplayName = actionName.replace(/_/g, ' ');
@@ -523,13 +515,12 @@ function App() {
         return;
       }
     }
-    // --- FIN NUEVA REGLA DE ALTERNANCIA ---
 
     const requiredConcentration = getActionConcentrationRequirement(actionName);
-    let concentrationConsumed = false; // Para restaurar si la acción falla por "ya usado"
-    const restoreConcentrationIfNeeded = () => { // Función para restaurar concentración
+    let concentrationConsumed = false;
+    const restoreConcentrationIfNeeded = () => {
         if (concentrationConsumed) {
-            updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: requiredConcentration }, null); // No loguear acción si se restaura
+            updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: requiredConcentration }, null);
             logMessage(`Concentración restaurada a Nivel ${requiredConcentration} debido a acción inválida/ya usada.`);
         }
     };
@@ -540,24 +531,20 @@ function App() {
         return;
     }
 
-    // Consumo de concentración (si aplica)
     if (requiredConcentration > 0) {
-        // Se actualiza temporalmente, se confirmará con updatePlayerStatsAndHistory si la acción procede
         const setAttackerDataProvisional = attacker.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
         setAttackerDataProvisional(prev => ({ ...prev, stats: { ...prev.stats, concentrationLevel: 0 } }));
         logMessage(`${attacker.name} usa su concentración (Nivel ${requiredConcentration}) para ${actionName.replace(/_/g, ' ')}. Nivel reseteado a 0.`);
         concentrationConsumed = true;
     }
 
-
-    // --- Lógica específica de cada acción ---
     if (actionName === 'concentracion') {
-        const currentLevel = attacker.stats.concentrationLevel + (concentrationConsumed ? requiredConcentration : 0); // Nivel antes de este intento de concentrar
+        const currentLevel = attacker.stats.concentrationLevel + (concentrationConsumed ? requiredConcentration : 0);
         const actualPreviousLevel = concentrationConsumed ? requiredConcentration : currentLevel;
 
         if (actualPreviousLevel >= 2) {
             logMessage(`Error: ${attacker.name} ya está en el nivel máximo de concentración (Nivel 2) o intentó concentrarse desde Nivel 2.`);
-            restoreConcentrationIfNeeded(); // Restaura si se consumió para este intento fallido
+            restoreConcentrationIfNeeded();
             return;
         }
         const nextLevel = actualPreviousLevel + 1;
@@ -622,8 +609,8 @@ function App() {
             }
         }
         updatePlayerStatsAndHistory(attacker.id, statChanges, actionName);
-        if (concentrationConsumed && requiredConcentration > 0) { // Confirmar consumo de concentración
-             updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); // No loguear acción de nuevo
+        if (concentrationConsumed && requiredConcentration > 0) {
+             updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null);
         }
         setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
@@ -650,7 +637,6 @@ function App() {
         }
 
         let attackerStatChanges = { puntosVitalesUsadoPorAtacante: true };
-        let defenderStatChanges = {};
         let isGameOver = false;
 
         let targetRange = [...(attacker.supportRanges?.puntos_vitales || [17, 20])];
@@ -669,7 +655,6 @@ function App() {
 
         if (rollVal >= targetRange[0] && rollVal <= targetRange[1]) {
             logMessage(`¡ÉXITO! ¡${attacker.name} golpea los Puntos Vitales de ${defender.name}! (Tirada: ${rollVal})`);
-            // Actualizar Puntos Vitales del defensor
             const setDefenderData = defender.id === player1Data.id ? setPlayer1Data : setPlayer2Data;
             setDefenderData(prev => ({ ...prev, stats: { ...prev.stats, puntosVitalesGolpeados: true } }));
 
@@ -751,22 +736,18 @@ function App() {
     }
     else if (actionName === 'furia') {
         if (attacker.stats.furiaUsedThisCombat) { logMessage("Furia ya usada."); restoreConcentrationIfNeeded(); return; }
-        // FuriaUsedThisCombat se seteará en updatePlayerStatsAndHistory al final de la secuencia en handleDefenseSelection
         let baseDamagePerHitFuria = attacker.actions.golpe || 0;
         if (attacker.stats.septimoSentidoActivo) { baseDamagePerHitFuria += 10; logMessage(`(7S: +10 Daño/golpe)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDamagePerHitFuria = Math.max(0, baseDamagePerHitFuria - 10); logMessage(`(PV: -10 Daño/golpe)`); }
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Furia - Ataque 1/3', message: `${attacker.name} inicia Furia!` });
         setActionState({ active: true, type: 'Furia', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', currentHit: 1, totalHits: 3, baseDamagePerHit: baseDamagePerHitFuria, blockDamagePA: 10, allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'], defenseBonuses: {}, furiaHitsLandedInSequence: 0 });
-        // No se actualiza historial aquí, se hará al final de la secuencia de Furia
-        // Confirmar consumo de concentración
         if (concentrationConsumed && requiredConcentration > 0) {
-            updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); // Solo actualiza concentración
+            updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null);
         }
         return;
     }
     else if (actionName === 'arrojar') {
         if (attacker.stats.arrojarUsedThisCombat) { logMessage("Arrojar ya usado."); restoreConcentrationIfNeeded(); return; }
-        // arrojarUsedThisCombat se seteará en updatePlayerStatsAndHistory al final de la secuencia
         let baseDamagePerHitArrojar = 30;
         if (attacker.stats.septimoSentidoActivo) { baseDamagePerHitArrojar += 10; logMessage(`(7S: +10 Daño/obj)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDamagePerHitArrojar = Math.max(0, baseDamagePerHitArrojar - 10); logMessage(`(PV: -10 Daño/obj)`); }
@@ -779,7 +760,6 @@ function App() {
     }
     else if (actionName === 'doble_salto') {
         if (attacker.stats.dobleSaltoUsedThisCombat) { logMessage("Doble Salto ya usado."); restoreConcentrationIfNeeded(); return; }
-        // dobleSaltoUsedThisCombat se seteará en updatePlayerStatsAndHistory al final de la acción
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Doble Salto', message: `${attacker.name} realiza Doble Salto!` });
         setActionState({ active: true, type: 'DobleSalto', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', allowedDefenses: ['esquivar'], defenseBonuses: { esquivar: 4 } });
         if (concentrationConsumed && requiredConcentration > 0) {
@@ -789,7 +769,6 @@ function App() {
     }
     else if (actionName === 'combo_velocidad_luz') {
         if (attacker.stats.comboVelocidadLuzUsedThisCombat) { logMessage("Combo Vel. Luz ya usado."); restoreConcentrationIfNeeded(); return; }
-        // comboVelocidadLuzUsedThisCombat se seteará en updatePlayerStatsAndHistory al final
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Combo Vel. Luz - Golpe 1', message: `${attacker.name} inicia Combo Vel. Luz!` });
         setActionState(prev => ({ ...prev, active: true, type: 'ComboVelocidadLuz', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', currentComboHit: 1, allowedDefenses: ['esquivar', 'bloquear'], furiaHitsLandedInSequence: 0 }));
         if (concentrationConsumed && requiredConcentration > 0) {
@@ -809,7 +788,6 @@ function App() {
         else if (actionName === 'lanzar_obj') { defenseBonusesForAction = { esquivar: -2, bloquear: 2 }; }
         else if (actionName === 'cargar') { defenseBonusesForAction = { esquivar: -2, contraatacar: -2}; }
         setActionState(prev => ({ ...prev, active: true, type: actionStateType, attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', allowedDefenses: allowedDefensesForAction, defenseBonuses: defenseBonusesForAction, furiaHitsLandedInSequence: 0, }));
-        // Historial y concentración se actualizan en handleDefenseSelection
         if (concentrationConsumed && requiredConcentration > 0) {
             updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null);
         }
@@ -841,7 +819,6 @@ function App() {
             if (concentrationConsumed && requiredConcentration > 0) { updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); }
             return;
         } else {
-            // lanzamientosSucesivosUsedThisCombat se seteará en updatePlayerStatsAndHistory
             const gameOver = await resolveLanzamientoSucesivo(attacker, defender, 0);
             updatePlayerStatsAndHistory(attacker.id, { lanzamientosSucesivosUsedThisCombat: true, concentrationLevel: (concentrationConsumed && requiredConcentration > 0) ? 0 : attacker.stats.concentrationLevel }, 'lanzamientos_sucesivos');
             if (!gameOver && actionState.stage !== 'game_over') {
@@ -900,7 +877,6 @@ function App() {
         }
         setActionState({ active: true, type: 'Romper', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_romper_target', allowedDefenses: null });
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Romper', message: `${attacker.name} se prepara para Romper...` });
-        // Historial y concentración se actualizan en handleRomperTargetSelect
         if (concentrationConsumed && requiredConcentration > 0) { updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); }
         return;
     }
@@ -913,7 +889,6 @@ function App() {
         if (rollVal >= targetRange[0] && rollVal <= targetRange[1]) {
             setArenaEvent({id: Date.now(), message: `${attacker.name} atrapa! (Tirada ${rollVal})`});
             setActionState({active:true, type:'Atrapar', attackerId:attacker.id, defenderId:defender.id, stage:'awaiting_followup', allowedDefenses: null});
-            // Historial y concentración se actualizan en handleAtraparFollowupSelect
             if (concentrationConsumed && requiredConcentration > 0) { updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); }
         } else {
             setArenaEvent({id: Date.now(), message: `${attacker.name} falla Atrapar (Tirada ${rollVal})`});
@@ -928,14 +903,12 @@ function App() {
     else if (actionName === 'combo') {
         setActionState(prev => ({ ...prev, active: true, type: 'Combo', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense', currentComboHit: 1, currentHit: 1, currentDefensePenalty: 0, allowedDefenses: null, furiaHitsLandedInSequence: 0 }));
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Combo - Golpe 1', message: `${attacker.name} lanza el primer golpe del combo!` });
-        // Historial y concentración se actualizan en handleDefenseSelection
         if (concentrationConsumed && requiredConcentration > 0) { updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); }
         return;
     }
     else if (actionName === 'engaño') {
         setActionState(prev => ({ ...prev, active: true, type: 'Engaño', attackerId: attacker.id, defenderId: defender.id, stage: 'awaiting_defense_part_1', allowedDefenses: null, defenseBonuses: { esquivar: -2 }, furiaHitsLandedInSequence: 0 }));
         setArenaEvent({ id: Date.now(), type: 'action_effect', actionName: 'Engaño - Ataque Falso', message: `${attacker.name} lanza un ataque falso (+2 Esq. para ${defender.name})!` });
-        // Historial y concentración se actualizan en handleDefenseSelection
         if (concentrationConsumed && requiredConcentration > 0) { updatePlayerStatsAndHistory(attacker.id, { concentrationLevel: 0 }, null); }
         return;
     }
@@ -963,7 +936,7 @@ function App() {
     }
     else {
         logMessage(`Acción ${actionName} no implementada o reconocida.`);
-        restoreConcentrationIfNeeded(); // Restaura si se consumió concentración para una acción no reconocida
+        restoreConcentrationIfNeeded();
     }
   };
 
@@ -974,7 +947,7 @@ function App() {
       }
       const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
       const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
-      const currentDefenderData = defender.id === player1Data.id ? player1Data : player2Data; // Para pasar al resolver
+      const currentDefenderData = defender.id === player1Data.id ? player1Data : player2Data;
 
       let bonusValue = 0;
       let statChangesForAttacker = {};
@@ -983,7 +956,7 @@ function App() {
           if (attacker.stats.resistenciaAvailable) {
               logMessage(`${attacker.name} elige usar Resistencia (+2) para ${actionNameRes.replace('_', ' ')}.`);
               bonusValue = 2;
-              statChangesForAttacker.resistenciaAvailable = false; // Consumir Resistencia
+              statChangesForAttacker.resistenciaAvailable = false;
           } else {
               logMessage(`¡ERROR! ${attacker.name} intentó usar Resistencia pero no estaba disponible.`);
           }
@@ -994,7 +967,7 @@ function App() {
       let gameOver = false;
       if (actionNameRes === 'llave') {
           gameOver = resolveLlaveAction(attacker, currentDefenderData, bonusValue);
-          statChangesForAttacker.lastActionType = 'llave'; // lastActionType se actualiza con el historial
+          statChangesForAttacker.lastActionType = 'llave';
       } else if (actionNameRes === 'lanzamientos_sucesivos') {
           statChangesForAttacker.lanzamientosSucesivosUsedThisCombat = true;
           gameOver = await resolveLanzamientoSucesivo(attacker, currentDefenderData, bonusValue);
@@ -1025,7 +998,6 @@ function App() {
     const defenderId = actionState.defenderId;
     const attacker = attackerId === player1Data.id ? player1Data : player2Data;
     const defender = defenderId === player1Data.id ? player1Data : player2Data;
-    // setDefenderData y setAttackerData ahora se manejan via updatePlayerStatsAndHistory o applyDamage
     const setDefenderDataProvisional = defenderId === player1Data.id ? setPlayer1Data : setPlayer2Data;
 
 
@@ -1040,7 +1012,6 @@ function App() {
     if (actionState.allowedDefenses && !actionState.allowedDefenses.includes(baseDefenseType)) {
         logMessage(`¡Defensa inválida! ${baseDefenseType} no permitido contra ${actionType.replace(/_/g," ")}.`);
         setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `¡${baseDefenseType} no permitido contra ${actionType.replace(/_/g," ")}!` });
-        // Si la defensa es inválida, el golpe conecta.
         if (actionType === 'Arrojar' || actionType === 'Furia') {
             logMessage(`Ataque de ${actionType} #${actionState.currentHit} conecta debido a defensa inválida.`);
             const damageToApply = actionState.baseDamagePerHit;
@@ -1084,9 +1055,7 @@ function App() {
     else if (defenseType === 'esquivar_agilidad' && defender.stats.agilidadAvailable) { defenseSpecificBonus = 3; defenderStatChanges.agilidadAvailable = false; logMessage("Agilidad usada");}
     else if (defenseType === 'contraatacar_destreza' && defender.stats.destrezaAvailable) { defenseSpecificBonus = 2; defenderStatChanges.destrezaAvailable = false; logMessage("Destreza usada");}
 
-    // Aplicar cambios de stats del defensor (consumo de bonos de defensa)
     if (Object.keys(defenderStatChanges).length > 0) {
-        // No se loguea acción para el defensor aquí
         updatePlayerStatsAndHistory(defenderId, defenderStatChanges, null);
     }
 
@@ -1197,7 +1166,6 @@ function App() {
 
     if (isGameOverByThisHit) { if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); } console.log("--- handleDefenseSelection FIN (Game Over) ---"); return; }
 
-    // --- Lógica de continuación de acción o cambio de turno ---
     let actionCompletedName = null;
     let attackerStatChangesOnComplete = {};
 
@@ -1227,7 +1195,7 @@ function App() {
         }
     }
     else if (actionType === 'Engaño' && currentStage === 'awaiting_defense_part_2') {
-        actionCompletedName = 'engaño'; // Engaño termina después de la parte 2
+        actionCompletedName = 'engaño';
     }
     else if (actionType === 'Combo' || actionType === 'ComboVelocidadLuz') {
         const isComboVel = actionType === 'ComboVelocidadLuz';
@@ -1252,10 +1220,10 @@ function App() {
         actionCompletedName = 'doble_salto';
         attackerStatChangesOnComplete.dobleSaltoUsedThisCombat = true;
     }
-    else if (actionType.startsWith('Atrapar_')) { // Follow-ups de Atrapar
-        actionCompletedName = 'atrapar'; // La acción original fue 'atrapar'
+    else if (actionType.startsWith('Atrapar_')) {
+        actionCompletedName = 'atrapar';
     }
-    else { // Acciones de un solo golpe que esperaban defensa
+    else {
         actionCompletedName = actionType.toLowerCase().replace('vel_luz', 'velocidad_luz');
     }
 
@@ -1278,11 +1246,10 @@ function App() {
     if (!actionState.active || actionState.type !== 'Atrapar' || actionState.stage !== 'awaiting_followup') { return; }
     const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
-    // setAttackerData se maneja con updatePlayerStatsAndHistory
 
     let gameOverByFollowup = false; const selectedOption = atraparFollowupOptions.find(opt => opt.id === optionId);
     logMessage(`${attacker.name} elige seguimiento de Atrapar: ${selectedOption?.name || optionId}`);
-    let actionToLogForHistory = 'atrapar'; // La acción principal es 'atrapar'
+    let actionToLogForHistory = 'atrapar';
     let attackerStatChanges = {};
 
     switch (optionId) {
@@ -1295,13 +1262,13 @@ function App() {
         else { setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op1: Falla (Tiradas: ${rolls.join(',')}).`});}
         break;
       }
-      case 'atrapar_op2': { // Espera defensa
+      case 'atrapar_op2': {
         let baseDmg = 80;
         if (attacker.stats.septimoSentidoActivo) { baseDmg += 30; logMessage(`(7S: +30 Daño)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDmg = Math.max(0, baseDmg - 20); logMessage(`(PV: -20 Daño)`); }
         setActionState({ ...actionState, type: 'Atrapar_Opcion2', stage: 'awaiting_defense', baseDamage: baseDmg, blockDamagePA: 20, allowedDefenses: ['bloquear'] });
         setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op2 (${baseDmg} daño). Rival solo Bloquear.`});
-        return; // No pasar turno aún
+        return;
       }
       case 'atrapar_op3': {
         let damagePerHit = 20;
@@ -1322,39 +1289,38 @@ function App() {
         setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op3: ${successfulDamageHits} imp, ${successfulBlocks} bloq. Daño: ${totalNormalDamage} PV, ${totalPADamage} PA.`});
         break;
       }
-      case 'atrapar_op4': { // Espera defensa
+      case 'atrapar_op4': {
         let baseDmg = 60;
         if (attacker.stats.septimoSentidoActivo) { baseDmg += 30; logMessage(`(7S: +30 Daño)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDmg = Math.max(0, baseDmg - 20); logMessage(`(PV: -20 Daño)`); }
         setActionState({ ...actionState, type: 'Atrapar_Opcion4', stage: 'awaiting_defense', baseDamage: baseDmg, blockDamagePA: 10, defenseBonuses: { esquivar: 2, bloquear: 2, contraatacar: 2 }, allowedDefenses: null });
         setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op4 (${baseDmg} daño). Rival defiende con -2.`});
-        return; // No pasar turno aún
+        return;
       }
       case 'atrapar_op5': {
         gameOverByFollowup = resolveLlaveAction(attacker, defender, 3);
-        actionToLogForHistory = 'llave'; // La acción efectiva fue una llave
+        actionToLogForHistory = 'llave';
         break;
       }
-      case 'atrapar_op6': { // Espera selección de target para romper
+      case 'atrapar_op6': {
         setActionState({ ...actionState, type: 'Atrapar_Opcion6', stage: 'awaiting_romper_target', romperBonus: 4 });
         setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op6 (Romper +4).`});
-        return; // No pasar turno aún
+        return;
       }
-      case 'atrapar_op7': { // Espera defensa
+      case 'atrapar_op7': {
         let baseDmg = 60;
         if (attacker.stats.septimoSentidoActivo) { baseDmg += 10; logMessage(`(7S: +10 Daño)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDmg = Math.max(0, baseDmg - 10); logMessage(`(PV: -10 Daño)`); }
         setActionState({ ...actionState, type: 'Atrapar_Opcion7', stage: 'awaiting_defense', baseDamage: baseDmg, allowedDefenses: ['esquivar'] });
         setArenaEvent({id:Date.now(), message:`${attacker.name} Atrapa Op7 (${baseDmg} daño). Rival solo Esquivar.`});
-        return; // No pasar turno aún
+        return;
       }
       default: break;
     }
 
-    // Si la acción de Atrapar se resolvió sin esperar más (no es return)
     updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, actionToLogForHistory);
 
-    if (!gameOverByFollowup && actionState.stage !== 'game_over') { // Asegurar que no haya game over antes de pasar turno
+    if (!gameOverByFollowup && actionState.stage !== 'game_over') {
         await delay(1500);
         setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
@@ -1371,12 +1337,12 @@ function App() {
     const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
 
     const wasAtraparFollowup = actionState.type === 'Atrapar_Opcion6';
-    const actionTypeForHistory = wasAtraparFollowup ? 'atrapar' : 'romper'; // Loguear 'atrapar' si vino de ahí
+    const actionTypeForHistory = wasAtraparFollowup ? 'atrapar' : 'romper';
     let attackerStatChanges = {};
 
     if (defender.stats.brokenParts[partToBreak] >= 2) {
         setArenaEvent({ id: Date.now(), outcome: 'invalid', message: `${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} no se puede romper más.` });
-        updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, actionTypeForHistory); // Loguear acción aunque falle por target
+        updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, actionTypeForHistory);
         setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
         const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
         setCurrentPlayerId(nextPlayerId); logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
@@ -1420,8 +1386,7 @@ function App() {
             handleResistenciaChoice={handleResistenciaChoice}
             atraparOptions={atraparFollowupOptions}
             getActionConcentrationRequirement={getActionConcentrationRequirement}
-            // Pasar IS_ACTION_ALTERNATION_EXCEPTION si se quiere deshabilitar botones en PlayerArea
-            // IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION} // DESCOMENTADO
           />
           <div className="center-column">
              <ArenaDisplay event={arenaEvent} />
@@ -1439,7 +1404,7 @@ function App() {
             handleResistenciaChoice={handleResistenciaChoice}
             atraparOptions={atraparFollowupOptions}
             getActionConcentrationRequirement={getActionConcentrationRequirement}
-            // IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+            IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION} // DESCOMENTADO
           />
         </div>
       )}
