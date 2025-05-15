@@ -1,4 +1,4 @@
-// PlayerArea.jsx MODIFICADO (Corrección en botón de Concentración)
+// PlayerArea.jsx MODIFICADO para UI de Regla de Alternancia
 
 import React from 'react';
 import StatBar from './StatBar';
@@ -15,7 +15,8 @@ function PlayerArea({
   handleRomperTargetSelect,
   handleResistenciaChoice,
   atraparOptions,
-  getActionConcentrationRequirement
+  getActionConcentrationRequirement,
+  IS_ACTION_ALTERNATION_EXCEPTION // NUEVA PROP
 }) {
 
   const renderActionSelection = () => {
@@ -45,52 +46,70 @@ function PlayerArea({
         let isDisabled = false;
         let buttonTitle = actionName.charAt(0).toUpperCase() + actionName.slice(1).replace(/_/g, ' ');
         let buttonText = buttonTitle;
+        const history = characterData.stats.actionHistory || [];
 
-        const isAlternationAction = ['llave', 'romper', 'presa', 'destrozar', 'fortaleza', 'agilidad', 'destreza', 'resistencia', 'lanzamientos_sucesivos', 'apresar'].includes(actionName);
-        const isAlternationBlocked = isAlternationAction && characterData.stats.lastActionType === actionName;
+        // --- Start Disabling Logic ---
 
-        if (isAlternationBlocked) {
+        // 1. Specific game state/cooldown checks (non-alternation related)
+        // These checks run first. If any of these disable the button,
+        // the alternation check below won't override it to enabled.
+        if (actionName === 'romper') {
+          const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
+          if (allOpponentPartsMaxBroken) {
             isDisabled = true;
-            buttonTitle = `No se puede usar ${buttonTitle} consecutivamente`;
-        }
-
-        if (!isDisabled) {
-            if (actionName === 'romper') {
-              const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
-              if (allOpponentPartsMaxBroken) { isDisabled = true; buttonTitle = "Todas las partes del rival están rotas al máximo"; }
-            } else if (['fortaleza', 'agilidad', 'destreza', 'resistencia'].includes(actionName)) {
-                const availableKey = `${actionName}Available`;
-                const usedKey = `${actionName}UsedThisCombat`;
-                if (characterData.stats[availableKey]) { isDisabled = true; buttonTitle = `Bono ${buttonTitle} ya activo`; }
-                else if (characterData.stats[usedKey]) { isDisabled = true; buttonTitle = `${buttonTitle} ya usada este combate`; }
-            } else if (actionName === 'lanzamientos_sucesivos' && characterData.stats.lanzamientosSucesivosUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Lanzamientos Sucesivos ya usado";
-            } else if (actionName === 'combo_velocidad_luz' && characterData.stats.comboVelocidadLuzUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Combo Velocidad Luz ya usado";
-            } else if (actionName === 'doble_salto' && characterData.stats.dobleSaltoUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Doble Salto ya usado este combate";
-            } else if (actionName === 'arrojar' && characterData.stats.arrojarUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
-            } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Furia ya usada este combate";
-            } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) {
-              isDisabled = true; buttonTitle = "Apresar ya usado este combate";
-            } else if (actionName === 'quebrar') {
-                if (characterData.stats.quebrarUsedThisCombat) {
-                    isDisabled = true; buttonTitle = "Quebrar ya usado este combate";
-                } else if (opponentData && opponentData.stats.currentPA <= 0) {
-                    isDisabled = true; buttonTitle = "La armadura del rival ya está destruida";
-                }
+            buttonTitle = "Todas las partes del rival están rotas al máximo";
+          }
+        } else if (['fortaleza', 'agilidad', 'destreza', 'resistencia'].includes(actionName)) {
+            const availableKey = `${actionName}Available`;
+            const usedKey = `${actionName}UsedThisCombat`;
+            if (characterData.stats[availableKey]) {
+                isDisabled = true;
+                buttonTitle = `Bono ${buttonTitle} ya activo`;
+            } else if (characterData.stats[usedKey]) {
+                isDisabled = true;
+                buttonTitle = `${buttonTitle} ya usada este combate`;
+            }
+        } else if (actionName === 'lanzamientos_sucesivos' && characterData.stats.lanzamientosSucesivosUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Lanzamientos Sucesivos ya usado";
+        } else if (actionName === 'combo_velocidad_luz' && characterData.stats.comboVelocidadLuzUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Combo Velocidad Luz ya usado";
+        } else if (actionName === 'doble_salto' && characterData.stats.dobleSaltoUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Doble Salto ya usado este combate";
+        } else if (actionName === 'arrojar' && characterData.stats.arrojarUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Arrojar ya usado este combate";
+        } else if (actionName === 'furia' && characterData.stats.furiaUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Furia ya usada este combate";
+        } else if (actionName === 'apresar' && characterData.stats.apresarUsedThisCombat) {
+          isDisabled = true; buttonTitle = "Apresar ya usado este combate";
+        } else if (actionName === 'quebrar') {
+            if (characterData.stats.quebrarUsedThisCombat) {
+                isDisabled = true; buttonTitle = "Quebrar ya usado este combate";
+            } else if (opponentData && opponentData.stats.currentPA <= 0) {
+                isDisabled = true; buttonTitle = "La armadura del rival ya está destruida";
             }
         }
 
+        // 2. New Alternation Rule Check (only if not already disabled and if IS_ACTION_ALTERNATION_EXCEPTION is available)
+        if (!isDisabled && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION(actionName)) {
+          const actionDisplayName = actionName.replace(/_/g, ' ');
+          if (history.length > 0 && history[0] === actionName) {
+            isDisabled = true;
+            buttonTitle = `Alternancia: No puedes repetir ${actionDisplayName} ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
+          } else if (history.length > 1 && history[1] === actionName) {
+            isDisabled = true;
+            buttonTitle = `Alternancia: 2 acciones diferentes antes de repetir ${actionDisplayName}. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
+          }
+        }
+        // --- End Disabling Logic ---
 
+
+        // Update buttonText based on final isDisabled and buttonTitle
         if (isDisabled) {
-            if (buttonTitle.includes("usad")) buttonText += " (Usada)";
+            if (buttonTitle.toLowerCase().includes("alternancia")) buttonText += " (Alt.)";
+            else if (buttonTitle.includes("usad")) buttonText += " (Usada)";
             else if (buttonTitle.includes("activ")) buttonText += " (Activa)";
             else if (buttonTitle.includes("rotas al máximo")) buttonText += " (MAX)";
             else if (buttonTitle.includes("armadura del rival ya está destruida")) buttonText += " (S/A)";
-            else if (isAlternationBlocked) buttonText += " (Alt.)";
         }
 
 
@@ -120,10 +139,25 @@ function PlayerArea({
                    key="concentracion-lvl0"
                    className="action-button"
                    onClick={() => handleActionInitiate('concentracion')}
-                   disabled={characterData.stats.concentrationLevel >= 2} // Deshabilitar si ya está en Nivel 2 (App.jsx también lo previene)
-                   title={characterData.stats.concentrationLevel >=2 ? "Ya estás en Concentración Máxima" : "Concentrarse (Nivel 1)"}
+                   disabled={characterData.stats.concentrationLevel >= 2 || (
+                        typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                        characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                        (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                   )}
+                   title={
+                     characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" :
+                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                     ) ? `Alternancia: No puedes usar Concentración ahora` :
+                     "Concentrarse (Nivel 1)"
+                   }
                  >
                    Concentración
+                   {( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                   ) ? ' (Alt.)' : ''}
                  </button>
                )}
 
@@ -136,16 +170,29 @@ function PlayerArea({
                    disabled={
                      characterData.stats.puntosVitalesUsadoPorAtacante ||
                      (opponentData && opponentData.stats.septimoSentidoActivo) ||
-                     (opponentData && opponentData.stats.puntosVitalesGolpeados)
+                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ||
+                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
+                     )
                    }
                    title={
                      characterData.stats.puntosVitalesUsadoPorAtacante ? "Ya usaste Golpear Puntos Vitales este combate" :
                      (opponentData && opponentData.stats.septimoSentidoActivo) ? "El rival está protegido por su Séptimo Sentido" :
                      (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" :
+                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
+                     ) ? `Alternancia: No puedes usar Puntos Vitales ahora` :
                      "Golpear Puntos Vitales del Rival"
                    }
                  >
-                   Puntos Vitales {characterData.stats.puntosVitalesUsadoPorAtacante ? '(Usada)' : ''}
+                   Puntos Vitales
+                   {characterData.stats.puntosVitalesUsadoPorAtacante ? '(Usada)' :
+                    ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('golpear_puntos_vitales') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'golpear_puntos_vitales' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'golpear_puntos_vitales'))
+                   ) ? ' (Alt.)' : ''}
                  </button>
                )}
 
@@ -157,18 +204,30 @@ function PlayerArea({
                    className="action-button"
                    onClick={() => handleActionInitiate('alcanzar_septimo_sentido')}
                    disabled={
-                       !characterData.stats.puntosVitalesGolpeados && 
-                       characterData.stats.septimoSentidoIntentado && 
-                       !characterData.stats.septimoSentidoActivo
+                       (!characterData.stats.puntosVitalesGolpeados &&
+                       characterData.stats.septimoSentidoIntentado &&
+                       !characterData.stats.septimoSentidoActivo) ||
+                       ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
+                         characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                         (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
+                       )
                    }
                    title={
                      characterData.stats.puntosVitalesGolpeados ? "Intentar recuperarse y alcanzar el 7º Sentido" :
                      (characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? "Ya intentaste alcanzar el 7º Sentido y fallaste este combate" :
+                     ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
+                     ) ? `Alternancia: No puedes usar Alcanzar 7º Sentido ahora` :
                      "Intentar alcanzar el Séptimo Sentido"
                    }
                  >
                    {characterData.stats.puntosVitalesGolpeados ? "Recuperarse (7ºS)" : "Alcanzar 7º Sentido"}
-                   {(!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? ' (Intentado)' : ''}
+                   {(!characterData.stats.puntosVitalesGolpeados && characterData.stats.septimoSentidoIntentado && !characterData.stats.septimoSentidoActivo) ? ' (Intentado)' :
+                    ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('alcanzar_septimo_sentido') &&
+                       characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                       (characterData.stats.actionHistory[0] === 'alcanzar_septimo_sentido' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'alcanzar_septimo_sentido'))
+                   ) ? ' (Alt.)' : ''}
                  </button>
                }
             </div>
@@ -187,10 +246,24 @@ function PlayerArea({
                         key="concentracion-again"
                         className="action-button concentrate-again-button"
                         onClick={() => handleActionInitiate('concentracion')}
-                        disabled={characterData.stats.concentrationLevel >= 2} // Deshabilitar si ya está en Nivel 2
-                        title={characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" : "Concentrarse de Nuevo (Nivel 2)"}
+                        disabled={characterData.stats.concentrationLevel >= 2 || (
+                            typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                            characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                            (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                        )}
+                        title={
+                            characterData.stats.concentrationLevel >= 2 ? "Ya estás en Concentración Máxima" :
+                            ( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                              characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                              (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                            ) ? `Alternancia: No puedes usar Concentración ahora` :
+                            "Concentrarse de Nuevo (Nivel 2)"}
                     >
                         Concentrarse de Nuevo
+                        {( typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('concentracion') &&
+                            characterData.stats.actionHistory && characterData.stats.actionHistory.length > 0 &&
+                            (characterData.stats.actionHistory[0] === 'concentracion' || (characterData.stats.actionHistory.length > 1 && characterData.stats.actionHistory[1] === 'concentracion'))
+                        ) ? ' (Alt.)' : ''}
                     </button>
                 </div>
             )}
@@ -282,12 +355,32 @@ function PlayerArea({
               {atraparOptions.map(option => {
                 const allOpponentPartsMaxBroken = opponentData && ['arms', 'legs', 'ribs'].every(part => opponentData.stats.brokenParts[part] >= 2);
                 const isRomperMejoradoDisabled = option.id === 'atrapar_op6' && allOpponentPartsMaxBroken;
-                const isLlaveBlockedByAlternation = option.id === 'atrapar_op5' && characterData.stats.lastActionType === 'llave';
-                const isButtonDisabled = isRomperMejoradoDisabled || isLlaveBlockedByAlternation;
+
+                // Check alternation for 'Llave Mejorada' (atrapar_op5 which effectively is 'llave')
+                let isLlaveAlternationBlocked = false;
+                if (option.id === 'atrapar_op5' && typeof IS_ACTION_ALTERNATION_EXCEPTION === 'function' && !IS_ACTION_ALTERNATION_EXCEPTION('llave')) {
+                    const history = characterData.stats.actionHistory || [];
+                    if ((history.length > 0 && history[0] === 'llave') || (history.length > 1 && history[1] === 'llave')) {
+                        isLlaveAlternationBlocked = true;
+                    }
+                }
+
+                const isButtonDisabled = isRomperMejoradoDisabled || isLlaveAlternationBlocked;
                 let buttonTitle = option.name;
                 let buttonText = option.name;
-                if (isRomperMejoradoDisabled) {buttonTitle = "Todas las partes del rival están rotas al máximo"; buttonText += " (MAX)";}
-                else if (isLlaveBlockedByAlternation) {buttonTitle = "No se puede usar Llave consecutivamente"; buttonText += " (Alt.)";}
+
+                if (isRomperMejoradoDisabled) {
+                    buttonTitle = "Todas las partes del rival están rotas al máximo"; buttonText += " (MAX)";
+                } else if (isLlaveAlternationBlocked) {
+                    const history = characterData.stats.actionHistory || [];
+                    if (history.length > 0 && history[0] === 'llave') {
+                       buttonTitle = `Alternancia: No puedes usar Llave ahora. (Reciente: ${history[0].replace(/_/g, ' ')})`;
+                    } else if (history.length > 1 && history[1] === 'llave') {
+                       buttonTitle = `Alternancia: 2 acciones diferentes antes de repetir Llave. (Secuencia: ${history[1].replace(/_/g, ' ')} -> ${history[0].replace(/_/g, ' ')})`;
+                    }
+                    buttonText += " (Alt.)";
+                }
+
 
                 return (
                   <button key={option.id} className="action-button" onClick={() => handleAtraparFollowupSelect(option.id)} disabled={isButtonDisabled} title={buttonTitle} >
