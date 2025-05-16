@@ -2,7 +2,7 @@ export const CABALLEROS_DISPONIBLES = [
   {
     id: 'seiya_v2', // Unique ID
     name: 'SEIYA DE PEGASO II',
-    image: '/images/seiya_v2.png', // Placeholder image path
+    image: '/images/pegaso.png', // Placeholder image path
     stats: {
       pv_max: 230, pa_max: 300, pc_max: 500, // pc_max is "COSMOS"
       currentPV: 230, currentPA: 300, currentPC: 500,
@@ -77,7 +77,7 @@ export const CABALLEROS_DISPONIBLES = [
   {
     id: 'shiryu_v2',
     name: 'SHIRYU DE DRAGON II',
-    image: '/images/shiryu_v2.png',
+    image: '/images/dragon.png',
     stats: {
       pv_max: 280, pa_max: 300, pc_max: 400,
       currentPV: 280, currentPA: 300, currentPC: 400,
@@ -152,7 +152,7 @@ export const CABALLEROS_DISPONIBLES = [
   {
     id: 'hyoga_v2',
     name: 'HYOGA DE CISNE II',
-    image: '/images/hyoga_v2.png',
+    image: '/images/cisne.png',
     stats: {
       pv_max: 230, pa_max: 300, pc_max: 500,
       currentPV: 230, currentPA: 300, currentPC: 500,
@@ -211,7 +211,7 @@ export const CABALLEROS_DISPONIBLES = [
   {
     id: 'shun_v2',
     name: 'SHUN DE ANDROMEDA II',
-    image: '/images/shun_v2.png',
+    image: '/images/shun.png',
     stats: {
       pv_max: 200, pa_max: 300, pc_max: 560,
       currentPV: 200, currentPA: 300, currentPC: 560,
@@ -278,7 +278,7 @@ export const CABALLEROS_DISPONIBLES = [
   {
     id: 'ikki_v2',
     name: 'IKKI DE FENIX II',
-    image: '/images/ikki_v2.png',
+    image: '/images/fenix.png',
     stats: {
       pv_max: 280, pa_max: 300, pc_max: 400,
       currentPV: 280, currentPA: 300, currentPC: 400,

@@ -66,8 +66,8 @@ const CharacterSelection = ({ personajes, onStartCombat }) => {
           <h2>Jugador 1</h2>
           {selectedCharIdP1 ? (
             <div className="preview-card p1-preview">
-              <img src={personajes.find(p=>p.id === selectedCharIdP1).image} alt={personajes.find(p=>p.id === selectedCharIdP1).name} />
-              <p>{personajes.find(p=>p.id === selectedCharIdP1).name}</p>
+              <img src={personajes.find(p=>p.id === selectedCharIdP1).image} alt={personajes.find(p=>p.id === selectedCharIdP1).name.replace(/ II$/, '')} />
+              <p>{personajes.find(p=>p.id === selectedCharIdP1).name.replace(/ II$/, '')}</p>
             </div>
           ) : <div className="placeholder-card">P1</div>}
         </div>
@@ -76,8 +76,8 @@ const CharacterSelection = ({ personajes, onStartCombat }) => {
           <h2>Jugador 2</h2>
           {selectedCharIdP2 ? (
             <div className="preview-card p2-preview">
-              <img src={personajes.find(p=>p.id === selectedCharIdP2).image} alt={personajes.find(p=>p.id === selectedCharIdP2).name} />
-              <p>{personajes.find(p=>p.id === selectedCharIdP2).name}</p>
+              <img src={personajes.find(p=>p.id === selectedCharIdP2).image} alt={personajes.find(p=>p.id === selectedCharIdP2).name.replace(/ II$/, '')} />
+              <p>{personajes.find(p=>p.id === selectedCharIdP2).name.replace(/ II$/, '')}</p>
             </div>
           ) : <div className="placeholder-card">P2</div>}
         </div>
@@ -85,7 +85,7 @@ const CharacterSelection = ({ personajes, onStartCombat }) => {
       
       {hoveredChar && (
         <div className="character-details-tooltip">
-          <h3>{hoveredChar.name}</h3>
+          <h3>{hoveredChar.name.replace(/ II$/, '')}</h3>
           <p>PV: {hoveredChar.stats.pv_max}</p>
           <p>PA: {hoveredChar.stats.pa_max}</p>
           <p>PC: {hoveredChar.stats.pc_max}</p>
@@ -110,8 +110,8 @@ const CharacterSelection = ({ personajes, onStartCombat }) => {
             onMouseEnter={() => setHoveredChar(char)}
             onMouseLeave={() => setHoveredChar(null)}
           >
-            <img src={char.image} alt={char.name} />
-            <p>{char.name}</p>
+            <img src={char.image} alt={char.name.replace(/ II$/, '')} />
+            <p>{char.name.replace(/ II$/, '')}</p>
           </div>
         ))}
       </div>
