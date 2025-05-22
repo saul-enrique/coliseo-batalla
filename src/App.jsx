@@ -652,18 +652,20 @@ function App() {
             return;
         }
 
-        // Verificar si ya usó los poderes este combate
-        if (attacker.stats.poderesUsadosThisCombat) {
+        // Verificar si el poder es 'Meteoros de Pegaso' (puede usarse múltiples veces)
+        const poderMeteoros = attacker.powers.find(poder => 
+            (poder.id === 'P001' || poder.name.toLowerCase().includes('meteoros')) &&
+            (parseInt(poder.cost) || 100) <= attacker.stats.currentPC
+        );
+
+        // Si no es 'Meteoros de Pegaso', verificar si ya usó poderes este combate
+        if (!poderMeteoros && attacker.stats.poderesUsadosThisCombat) {
             logMessage(`${attacker.name} ya usó sus poderes este combate.`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: '¡Ya usaste tus poderes este combate!' });
             return;
         }
 
-        // Buscar el poder 'Meteoros de Pegaso'
-        const poderMeteoros = attacker.powers.find(poder => 
-            poder.id === 'P001' || poder.name.toLowerCase().includes('meteoros')
-        );
-
+        // Verificar si el jugador tiene el poder 'Meteoros de Pegaso' disponible
         if (!poderMeteoros) {
             logMessage(`${attacker.name} no tiene el poder 'Meteoros de Pegaso' disponible.`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: 'No tienes el poder \'Meteoros de Pegaso\' disponible.' });
@@ -709,9 +711,9 @@ function App() {
             powerCost: costoCosmos
         });
 
-        // Consumir el poder para este combate
+        // No marcamos poderesUsadosThisCombat como true para permitir múltiples usos
+        // Solo actualizamos el cosmos gastado
         updatePlayerStatsAndHistory(attacker.id, { 
-            poderesUsadosThisCombat: true,
             currentPC: attacker.stats.currentPC - costoCosmos
         }, 'usar_poder');
         
