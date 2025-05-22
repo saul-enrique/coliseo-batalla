@@ -644,6 +644,79 @@ function App() {
         logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
         return;
     }
+    else if (actionName === 'usar_poder') {
+        // Verificar si el personaje tiene poderes disponibles
+        if (!attacker.powers || attacker.powers.length === 0) {
+            logMessage(`${attacker.name} no tiene poderes disponibles.`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `${attacker.name} no tiene poderes disponibles.` });
+            return;
+        }
+
+        // Verificar si ya usó los poderes este combate
+        if (attacker.stats.poderesUsadosThisCombat) {
+            logMessage(`${attacker.name} ya usó sus poderes este combate.`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: '¡Ya usaste tus poderes este combate!' });
+            return;
+        }
+
+        // Buscar el poder 'Meteoros de Pegaso'
+        const poderMeteoros = attacker.powers.find(poder => 
+            poder.id === 'P001' || poder.name.toLowerCase().includes('meteoros')
+        );
+
+        if (!poderMeteoros) {
+            logMessage(`${attacker.name} no tiene el poder 'Meteoros de Pegaso' disponible.`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: 'No tienes el poder \'Meteoros de Pegaso\' disponible.' });
+            return;
+        }
+
+        // Verificar si tiene suficiente cosmos (100 puntos)
+        const costoCosmos = parseInt(poderMeteoros.cost) || 100;
+        if (attacker.stats.currentPC < costoCosmos) {
+            logMessage(`${attacker.name} no tiene suficiente cosmos (${costoCosmos} necesarios, ${attacker.stats.currentPC} disponibles).`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                outcome: 'invalid', 
+                message: `No tienes suficiente cosmos (${costoCosmos} necesarios, ${attacker.stats.currentPC} disponibles).` 
+            });
+            return;
+        }
+
+        // Iniciar el ataque de Meteoros de Pegaso
+        logMessage(`${attacker.name} inicia '${poderMeteoros.name}'!`);
+        setArenaEvent({ 
+            id: Date.now(), 
+            type: 'action_effect', 
+            actionName: poderMeteoros.name, 
+            message: `¡${attacker.name} activa '${poderMeteoros.name}'! (${costoCosmos} PC)` 
+        });
+
+        // Configurar el estado para el ataque de meteoros
+        setActionState({
+            active: true,
+            type: 'MeteorosPegaso',
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            stage: 'awaiting_defense',
+            currentHit: 1,
+            totalHits: 5, // 5 meteoros
+            baseDamagePerHit: 20, // 20 puntos de daño cada uno
+            blockDamagePA: 0, // No daña la armadura
+            allowedDefenses: ['esquivar', 'bloquear'],
+            defenseBonuses: {},
+            powerUsed: true,
+            powerCost: costoCosmos
+        });
+
+        // Consumir el poder para este combate
+        updatePlayerStatsAndHistory(attacker.id, { 
+            poderesUsadosThisCombat: true,
+            currentPC: attacker.stats.currentPC - costoCosmos
+        }, 'usar_poder');
+        
+        return;
+    }
     else if (actionName === 'alcanzar_septimo_sentido') {
         const isRecoveringFromPuntosVitales = attacker.stats.puntosVitalesGolpeados;
         if (isRecoveringFromPuntosVitales) logMessage(`${attacker.name} intenta recuperarse de Puntos Vitales y alcanzar el Séptimo Sentido.`);
@@ -1232,6 +1305,10 @@ function App() {
         if (attacker.stats.septimoSentidoActivo) { baseDamage += 30; logMessage(`(7S Atacante: +30 Daño)`); }
         if (attacker.stats.puntosVitalesGolpeados) { baseDamage = Math.max(0, baseDamage - 20); logMessage(`(PV Atacante: -20 Daño)`); }
     }
+    else if (actionType === 'MeteorosPegaso') {
+        baseDamage = actionState.baseDamagePerHit || 20; // 20 de daño por cada meteoro
+        logMessage(`Meteoro ${actionState.currentHit} de ${actionState.totalHits}`);
+    }
     else if (!actionType.startsWith('Atrapar_') && !['DobleSalto', 'Combo', 'ComboVelocidadLuz', 'Engaño', 'Arrojar', 'Furia'].includes(actionType)) {
         if (attacker.stats.septimoSentidoActivo && ['golpe', 'lanzar_obj', 'salto', 'velocidad_luz', 'embestir', 'cargar'].includes(actionKey)) {
             baseDamage += 30; logMessage(`(7S Atacante: +30 Daño a ${actionType})`);
@@ -1297,8 +1374,14 @@ function App() {
     if (!isGameOverByThisHit && damageToDefenderPA > 0) { damageResultDefender = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageResultDefender.actualDamageDealt} de daño a PA.`; if (damageResultDefender.gameOver) isGameOverByThisHit = true; }
 
     let hitContext = "";
-    if (['Arrojar', 'Furia', 'Combo', 'ComboVelocidadLuz'].includes(actionType)) { hitContext = ` (Golpe ${actionState.currentHit || actionState.currentComboHit})`; }
-    let finalMessage = `${defender.name} intenta ${defenseType.replace(/_/g,' ')}${defenseBonusOrPenaltyText} vs ${actionType.replace(/_/g, ' ')}${hitContext}. Tirada: ${rollVal}. `;
+    if (['Arrojar', 'Furia', 'Combo', 'ComboVelocidadLuz', 'MeteorosPegaso'].includes(actionType)) { 
+        const hitNumber = actionState.currentHit || actionState.currentComboHit;
+        hitContext = actionType === 'MeteorosPegaso' 
+            ? ` (Meteoro ${hitNumber} de ${actionState.totalHits})` 
+            : ` (Golpe ${hitNumber})`; 
+    }
+    const actionDisplayName = actionType === 'MeteorosPegaso' ? 'Meteoros de Pegaso' : actionType.replace(/_/g, ' ');
+    let finalMessage = `${defender.name} intenta ${defenseType.replace(/_/g,' ')}${defenseBonusOrPenaltyText} vs ${actionDisplayName}${hitContext}. Tirada: ${rollVal}. `;
     if (targetMin !== null) { finalMessage += `(Necesita ${targetMin}-${targetMax}). `; }
     switch (rollOutcome) { case 'success': finalMessage += "¡Éxito Defendiendo! "; break; case 'failure': finalMessage += "¡Fallo Defendiendo! "; break; case 'blocked': finalMessage += "¡Bloqueado! "; break; case 'countered': finalMessage += "¡Contraatacado! "; break; case 'invalid': finalMessage += "¡Defensa Inválida! "; break; default: finalMessage += "Resultado: "; break; }
     finalMessage += defenderDamageMessage + " " + attackerDamageMessage;
@@ -1311,15 +1394,28 @@ function App() {
     let actionCompletedName = null;
     let attackerStatChangesOnComplete = {};
 
-    if (actionType === 'Arrojar' || actionType === 'Furia') {
+    if (actionType === 'Arrojar' || actionType === 'Furia' || actionType === 'MeteorosPegaso') {
         let updatedActionState = { ...actionState };
-        if (actionType === 'Arrojar') { if (damageResultDefender.actualDamageDealt > 0 || damageResultAttacker.actualDamageDealt > 0) { updatedActionState.hitsLandedThisTurn++; } updatedActionState.damageDealtThisTurn += damageResultDefender.actualDamageDealt; }
-        else if (actionType === 'Furia') { if (rollOutcome === 'failure' || rollOutcome === 'invalid' || (rollOutcome === 'countered' && damageToDefender > 0 )) { updatedActionState.furiaHitsLandedInSequence++; } }
+        if (actionType === 'Arrojar') { 
+            if (damageResultDefender.actualDamageDealt > 0 || damageResultAttacker.actualDamageDealt > 0) { 
+                updatedActionState.hitsLandedThisTurn++; 
+            } 
+            updatedActionState.damageDealtThisTurn += damageResultDefender.actualDamageDealt; 
+        }
+        else if (actionType === 'Furia') { 
+            if (rollOutcome === 'failure' || rollOutcome === 'invalid' || (rollOutcome === 'countered' && damageToDefender > 0)) { 
+                updatedActionState.furiaHitsLandedInSequence++; 
+            } 
+        }
+        // Para Meteoros de Pegaso, siempre avanzamos al siguiente meteoro independientemente del resultado
+        else if (actionType === 'MeteorosPegaso') {
+            logMessage(`Meteoro ${updatedActionState.currentHit} impacta con ${baseDamage} de daño.`);
+        }
 
         if (updatedActionState.currentHit >= updatedActionState.totalHits) {
-            actionCompletedName = actionType.toLowerCase();
-            if (actionCompletedName === 'furia') attackerStatChangesOnComplete.furiaUsedThisCombat = true;
-            if (actionCompletedName === 'arrojar') attackerStatChangesOnComplete.arrojarUsedThisCombat = true;
+            actionCompletedName = actionType === 'MeteorosPegaso' ? 'usar_poder' : actionType.toLowerCase();
+            if (actionType === 'Furia') attackerStatChangesOnComplete.furiaUsedThisCombat = true;
+            else if (actionType === 'Arrojar') attackerStatChangesOnComplete.arrojarUsedThisCombat = true;
             logMessage(`Secuencia de ${actionType} terminada.`);
         } else {
             updatedActionState.currentHit += 1; updatedActionState.stage = 'awaiting_defense';

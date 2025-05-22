@@ -255,6 +255,25 @@ function PlayerArea({
                      </button>
                  );
                })()}
+
+              {/* Botón de Poderes */}
+              {playerData.powers && playerData.powers.length > 0 && (() => {
+                 const isDisabled = playerData.stats.poderesUsadosThisCombat || false;
+                 const buttonTitle = isDisabled ? "Ya usaste tus poderes este combate" : "Usar poder especial del personaje";
+                 const buttonText = playerData.stats.poderesUsadosThisCombat ? "Poder Usado" : "Poder";
+                 
+                 return (
+                     <button
+                       key="usar_poder"
+                       className={`action-button ${isDisabled ? 'action-button-disabled' : ''}`}
+                       onClick={() => handleActionInitiate('usar_poder')}
+                       disabled={isDisabled}
+                       title={buttonTitle}
+                     >
+                       {buttonText}
+                     </button>
+                 );
+              })()}
             </div>
           </>
         )}
