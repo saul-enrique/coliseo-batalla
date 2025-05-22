@@ -703,7 +703,7 @@ function App() {
             totalHits: 5, // 5 meteoros
             baseDamagePerHit: 20, // 20 puntos de daño cada uno
             blockDamagePA: 0, // No daña la armadura
-            allowedDefenses: ['esquivar', 'bloquear'],
+            allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'], // Permitir contraatacar
             defenseBonuses: {},
             powerUsed: true,
             powerCost: costoCosmos
@@ -1346,7 +1346,14 @@ function App() {
     } else if (baseDefenseType === 'contraatacar') {
          let [min, max] = defender.defenseRanges.contraatacar;
          const contraataqueRollAdjustment = (actionType === 'Furia' ? 0 : actionDefenseModifier) - defenseSpecificBonus;
-         if (['Atrapar_Opcion2', 'Atrapar_Opcion7', 'DobleSalto', 'Velocidad_luz', 'ComboVelocidadLuz'].includes(actionType)) { defenseSuccessful = false; rollOutcome = 'invalid'; damageToDefender = baseDamage; targetMin = null; targetMax = null; logMessage(`¡Contraataque inválido contra ${actionType}!`);}
+         if (['Atrapar_Opcion2', 'Atrapar_Opcion7', 'DobleSalto', 'Velocidad_luz', 'ComboVelocidadLuz'].includes(actionType)) { 
+             defenseSuccessful = false; 
+             rollOutcome = 'invalid'; 
+             damageToDefender = baseDamage; 
+             targetMin = null; 
+             targetMax = null; 
+             logMessage(`¡Contraataque inválido contra ${actionType}!`);
+         }
          else {
             targetMin = Math.min(21, Math.max(1, min + contraataqueRollAdjustment - septimoSentidoDefensaBonus + puntosVitalesDefensaPenaltyValue));
             targetMax = max;
@@ -1361,6 +1368,11 @@ function App() {
                     logMessage(`(Contraataque del Defensor debilitado por partes rotas: -${counterDamageReduction} Daño)`);
                 }
                 damageToAttacker = counterDamage;
+                
+                // Si se contraataca exitosamente un meteoro, se aplica el daño pero se continúa con los meteoros restantes
+                if (actionType === 'MeteorosPegaso') {
+                    logMessage(`¡${defender.name} ha contraatacado exitosamente el meteoro!`);
+                }
             } else { defenseSuccessful = false; damageToDefender = baseDamage; rollOutcome = 'failure'; }
         }
     }
@@ -1407,9 +1419,13 @@ function App() {
                 updatedActionState.furiaHitsLandedInSequence++; 
             } 
         }
-        // Para Meteoros de Pegaso, siempre avanzamos al siguiente meteoro independientemente del resultado
+        // Para Meteoros de Pegaso, siempre continuamos con el siguiente meteoro
         else if (actionType === 'MeteorosPegaso') {
-            logMessage(`Meteoro ${updatedActionState.currentHit} impacta con ${baseDamage} de daño.`);
+            if (rollOutcome === 'countered') {
+                logMessage(`¡${defender.name} ha contraatacado el meteoro!`);
+            } else {
+                logMessage(`Meteoro ${updatedActionState.currentHit} impacta con ${baseDamage} de daño.`);
+            }
         }
 
         if (updatedActionState.currentHit >= updatedActionState.totalHits) {
