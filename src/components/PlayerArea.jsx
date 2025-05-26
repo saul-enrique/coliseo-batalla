@@ -9,6 +9,7 @@ function PlayerArea({
   opponentData,
   isCurrentPlayer,
   handleActionInitiate,
+  handlePowerSelect,
   actionState,
   handleDefenseSelection,
   handleAtraparFollowupSelect,
@@ -18,6 +19,15 @@ function PlayerArea({
   getActionConcentrationRequirement,
   IS_ACTION_ALTERNATION_EXCEPTION // NUEVA PROP
 }) {
+  // Añadir logs para depuración
+  console.log(`PlayerArea (${playerData.name}):`, {
+    actionState: JSON.parse(JSON.stringify(actionState)),
+    isCurrentPlayer,
+    isDefender: actionState.active && actionState.defenderId === playerData.id,
+    shouldShowDefense: actionState.active && 
+                      actionState.defenderId === playerData.id && 
+                      actionState.stage?.startsWith('awaiting_defense')
+  });
 
   const renderActionSelection = () => {
     const currentConcentrationLevel = playerData.stats.concentrationLevel || 0;
@@ -221,15 +231,35 @@ function PlayerArea({
                     (opponentData && opponentData.stats.puntosVitalesGolpeados) ? "Los Puntos Vitales del rival ya están afectados" : "Golpear Puntos Vitales del Rival"
                   );
                   return (
-                     <button
-                       key="golpear_puntos_vitales"
-                       className={props.buttonClassName}
-                       onClick={() => handleActionInitiate('golpear_puntos_vitales')}
-                       disabled={props.isDisabled}
-                       title={props.buttonTitle}
-                     >
-                       {props.buttonText}
-                     </button>
+                    <button
+                      key="golpear_puntos_vitales-lvl0"
+                      className={props.buttonClassName}
+                      onClick={() => handleActionInitiate('golpear_puntos_vitales')}
+                      disabled={props.isDisabled}
+                      title={props.buttonTitle}
+                    >
+                      {props.buttonText}
+                    </button>
+                  );
+              })()}
+
+              {/* Botón de Poderes */}
+              {playerData.powers && playerData.powers.length > 0 && (() => {
+                  const hasMeteoros = playerData.powers.some(p => p.id === 'P001' || p.name.toLowerCase().includes('meteoros'));
+                  const isDisabled = playerData.stats.poderesUsadosThisCombat && !hasMeteoros;
+                  const buttonTitle = isDisabled ? "Ya usaste tus poderes este combate" : "Usar un Poder";
+                  const buttonText = isDisabled ? "Poderes (Usados)" : "Poderes";
+                  
+                  return (
+                    <button
+                      key="usar_poder-lvl0"
+                      className="action-button"
+                      onClick={() => handleActionInitiate('usar_poder')}
+                      disabled={isDisabled}
+                      title={buttonTitle}
+                    >
+                      {buttonText}
+                    </button>
                   );
               })()}
 
@@ -255,25 +285,6 @@ function PlayerArea({
                      </button>
                  );
                })()}
-
-              {/* Botón de Poderes */}
-              {playerData.powers && playerData.powers.length > 0 && (() => {
-                 const isDisabled = playerData.stats.poderesUsadosThisCombat || false;
-                 const buttonTitle = isDisabled ? "Ya usaste tus poderes este combate" : "Usar poder especial del personaje";
-                 const buttonText = playerData.stats.poderesUsadosThisCombat ? "Poder Usado" : "Poder";
-                 
-                 return (
-                     <button
-                       key="usar_poder"
-                       className={`action-button ${isDisabled ? 'action-button-disabled' : ''}`}
-                       onClick={() => handleActionInitiate('usar_poder')}
-                       disabled={isDisabled}
-                       title={buttonTitle}
-                     >
-                       {buttonText}
-                     </button>
-                 );
-              })()}
             </div>
           </>
         )}
@@ -474,6 +485,60 @@ function PlayerArea({
      );
    };
 
+  // Nueva función para renderizar la selección de poderes
+  const renderPowerSelection = () => {
+    if (!playerData.powers || playerData.powers.length === 0) {
+        return <div className="waiting-message">No tienes poderes disponibles.</div>;
+    }
+
+    // Excepción para Meteoros de Pegaso (multi-uso)
+    const meteorosPower = playerData.powers.find(p => p.id === 'P001' || p.name.toLowerCase().includes('meteoros'));
+    
+    // Si ya se usó un poder Y NO hay meteoros disponibles (o el único poder era de un solo uso y ya se usó)
+    if (playerData.stats.poderesUsadosThisCombat && !meteorosPower) {
+         return <div className="waiting-message">Ya has utilizado tu poder este combate.</div>;
+    }
+
+    return (
+        <div className="power-selection-section">
+            <h4>Elige un Poder:</h4>
+            <div className="power-buttons">
+                {playerData.powers.map(power => {
+                    const cost = parseInt(power.cost) || 0;
+                    const suficientePC = playerData.stats.currentPC >= cost;
+                    const isMeteoros = power.id === 'P001' || power.name.toLowerCase().includes('meteoros');
+                    
+                    // Un poder está deshabilitado si no hay suficiente PC,
+                    // O si es un poder de un solo uso y ya se usó un poder de un solo uso.
+                    const isDisabled = !suficientePC || (!isMeteoros && playerData.stats.poderesUsadosThisCombat);
+                    
+                    let buttonText = `${power.name} (${cost} PC)`;
+                    let buttonTitle = `${power.name} - Costo: ${cost} PC. ${power.details || ''}`;
+                    if (!suficientePC) {
+                        buttonTitle = `PC Insuficiente (Necesitas ${cost}, tienes ${playerData.stats.currentPC})`;
+                        buttonText += " (PC Insuf.)";
+                    } else if (!isMeteoros && playerData.stats.poderesUsadosThisCombat) {
+                        buttonTitle = "Ya usaste un poder de un solo uso este combate.";
+                        buttonText += " (Usado)";
+                    }
+
+                    return (
+                        <button
+                            key={power.id}
+                            className="power-button"
+                            onClick={() => handlePowerSelect(power.id)}
+                            disabled={isDisabled}
+                            title={buttonTitle}
+                        >
+                            {buttonText}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+  };
+
   return (
     <div className={`player-area ${isCurrentPlayer ? 'current-player' : ''}`}>
       <div className="character-info">
@@ -497,16 +562,22 @@ function PlayerArea({
 
       <div className="action-defense-area">
           {isCurrentPlayer ? (
-            actionState.stage === 'awaiting_resistencia_choice' && actionState.attackerId === playerData.id ? renderResistenciaChoice()
+            actionState.stage === 'awaiting_power_selection' && actionState.attackerId === playerData.id ? renderPowerSelection()
+            : actionState.stage === 'awaiting_resistencia_choice' && actionState.attackerId === playerData.id ? renderResistenciaChoice()
             : actionState.stage === 'awaiting_followup' && actionState.attackerId === playerData.id ? renderAtraparFollowup()
             : actionState.stage === 'awaiting_romper_target' && actionState.attackerId === playerData.id ? renderRomperTarget()
-            : actionState.active && actionState.attackerId === playerData.id && actionState.stage?.startsWith('awaiting_defense')
+            : actionState.active && actionState.attackerId === playerData.id && (actionState.stage === 'awaiting_defense' || actionState.type === 'UsarPoder')
                 ? <div className="waiting-message">
-                    Esperando defensa del rival ({actionState.type === 'Arrojar' || actionState.type === 'Furia' ? `Ataque ${actionState.currentHit}/${actionState.totalHits}` : actionState.type?.replace(/_/g, ' ') || 'Acción Actual'})...
+                    Esperando {actionState.stage === 'awaiting_defense' ? 'defensa del rival' : 'acción'} ({
+                      actionState.powerDetails ? actionState.powerDetails.name : 
+                      actionState.type?.replace(/_/g, ' ').replace('VelocidadLuz', 'Vel. Luz') || 'Acción Actual'
+                    }
+                    { (actionState.type === 'Arrojar' || actionState.type === 'Furia' || actionState.type === 'MeteorosPegaso') ? ` - Ataque ${actionState.currentHit}/${actionState.totalHits}` : '' }
+                    )...
                   </div>
             : renderActionSelection()
           ) : (
-            actionState.active && actionState.defenderId === playerData.id && actionState.stage?.startsWith('awaiting_defense') ? renderDefenseSelection()
+            actionState.active && actionState.defenderId === playerData.id && actionState.stage === 'awaiting_defense' ? renderDefenseSelection()
             : <div className="waiting-message">Esperando turno del rival...</div>
           )}
       </div>

@@ -15,6 +15,7 @@ const initialPlayer1Data = {
   stats: {
     pv_max: 230, pa_max: 300, pc_max: 500,
     currentPV: 230, currentPA: 300, currentPC: 500,
+    saltoDamageBonus: 0,
     atrapar_bonus: 0,
     brokenParts: { arms: 0, legs: 0, ribs: 0 },
     concentrationLevel: 0,
@@ -86,6 +87,7 @@ const initialPlayer2Data = {
   stats: {
     pv_max: 280, pa_max: 300, pc_max: 400,
     currentPV: 280, currentPA: 300, currentPC: 400,
+    saltoDamageBonus: 0,
     atrapar_bonus: 0,
     brokenParts: { arms: 0, legs: 0, ribs: 0 },
     concentrationLevel: 0,
@@ -214,6 +216,12 @@ function App() {
     active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null,
     currentHit: 0, totalHits: 0, baseDamagePerHit: 0, blockDamagePA: 0,
     hitsLandedThisTurn: 0, damageDealtThisTurn: 0, furiaHitsLandedInSequence: 0,
+  });
+  const [powerSelection, setPowerSelection] = useState({
+    isSelecting: false,
+    powers: [],
+    attackerId: null,
+    defenderId: null
   });
   const [gameLog, setGameLog] = useState([]);
   const [arenaEvent, setArenaEvent] = useState(null);
@@ -345,7 +353,7 @@ function App() {
     setPlayer1Data(null); // Reiniciar datos del jugador 1
     setPlayer2Data(null); // Reiniciar datos del jugador 2
     setCurrentPlayerId(null); // Reiniciar jugador actual
-    setGameLog([]); // Reiniciar el log del juego
+    setGameLog([]);  // Reiniciar el log del juego
     setActionState({ // Resetear el estado de la acción
         active: false, type: null, attackerId: null, defenderId: null, stage: null, allowedDefenses: null,
         currentHit: 0, totalHits: 0, baseDamagePerHit: 0, blockDamagePA: 0,
@@ -576,11 +584,13 @@ function App() {
     const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
     const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
 
-    if (!attacker || !defender) {
+    if (!attacker || !defender) { // Verificación crucial
         logMessage("Error en handleActionInitiate: Datos de jugador no cargados.");
         return;
     }
+
     console.log('Acción iniciada:', actionName, "por", attacker.name);
+
     if (actionState.active && actionState.stage !== null) {
         logMessage("No se puede iniciar acción mientras otra está activa.");
         return;
@@ -643,38 +653,172 @@ function App() {
         return;
     }
     else if (actionName === 'usar_poder') {
+        // Verificar si el personaje tiene poderes disponibles
         if (!attacker.powers || attacker.powers.length === 0) {
             logMessage(`${attacker.name} no tiene poderes disponibles.`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: `${attacker.name} no tiene poderes disponibles.` });
-            restoreConcentrationIfNeeded();
             return;
         }
 
-        // Verificar si ya usó un poder de un solo uso este combate (excepto Meteoros)
-        const hasMeteoros = attacker.powers.some(p => p.id === 'P001' || p.name.toLowerCase().includes('meteoros'));
-        if (attacker.stats.poderesUsadosThisCombat && !hasMeteoros) {
+        // Mostrar el menú de selección de poderes
+        setPowerSelection({
+            isSelecting: true,
+            powers: attacker.powers,
+            attackerId: attacker.id,
+            defenderId: defender.id
+        });
+        return;
+
+        // Verificar si el poder es 'Meteoros de Pegaso' o 'Patada Dragón' (pueden usarse múltiples veces)
+        console.log('=== DEPURACIÓN DE PODERES ===');
+        console.log('Personaje:', attacker.name);
+        console.log('Poderes disponibles:', JSON.stringify(attacker.powers, null, 2));
+        console.log('Cosmos actual:', attacker.stats.currentPC);
+        
+        const poderesEspeciales = attacker.powers.filter(poder => {
+            const nombrePoder = poder.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Quita tildes
+            const esPoderEspecial = (
+                (poder.id === 'P001' || nombrePoder.includes('meteoros')) || // Para Seiya
+                (poder.id === 'P004' || nombrePoder.includes('dragon naciente')) // Para Shiryu
+            );
+            const tieneCosmosSuficiente = (parseInt(poder.cost) || 50) <= attacker.stats.currentPC;
+            console.log(`Poder: ${poder.name} (${poder.id}), Tipo: ${poder.type}, Costo: ${poder.cost}, Es especial: ${esPoderEspecial}, Cosmos suficiente: ${tieneCosmosSuficiente}`);
+            return esPoderEspecial && tieneCosmosSuficiente;
+        });
+        
+        const poderEspecial = poderesEspeciales[0]; // Tomar el primer poder que cumpla
+        console.log('Poderes especiales encontrados:', poderesEspeciales);
+        console.log('Poder especial seleccionado:', poderEspecial);
+
+        // Si no es un poder especial, verificar si ya usó poderes este combate
+        if (!poderEspecial && attacker.stats.poderesUsadosThisCombat) {
             logMessage(`${attacker.name} ya usó sus poderes este combate.`);
             setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: '¡Ya usaste tus poderes este combate!' });
-            restoreConcentrationIfNeeded();
             return;
         }
 
-        logMessage(`${attacker.name} decide usar un poder...`);
-        setActionState({
-            active: true,
-            type: 'UsarPoder',
-            attackerId: attacker.id,
-            defenderId: defender.id,
-            stage: 'awaiting_power_selection',
-            allowedDefenses: null,
-            powerDetails: null
-        });
-        setArenaEvent({ 
-            id: Date.now(), 
-            type: 'action_effect', 
-            actionName: 'Selección de Poder', 
-            message: `¡${attacker.name} se prepara para desatar su cosmos!` 
-        });
+        // Verificar si el jugador tiene un poder especial disponible
+        if (!poderEspecial) {
+            logMessage(`${attacker.name} no tiene un poder especial disponible o suficiente cosmos.`);
+            setArenaEvent({ id: Date.now(), type: 'action_effect', outcome: 'invalid', message: 'No tienes un poder especial disponible o suficiente cosmos.' });
+            return;
+        }
+
+        // Verificar si tiene suficiente cosmos
+        const costoCosmos = parseInt(poderEspecial.cost) || 50;
+        if (attacker.stats.currentPC < costoCosmos) {
+            logMessage(`${attacker.name} no tiene suficiente cosmos (${costoCosmos} necesarios, ${attacker.stats.currentPC} disponibles).`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                outcome: 'invalid', 
+                message: `No tienes suficiente cosmos (${costoCosmos} necesarios, ${attacker.stats.currentPC} disponibles).` 
+            });
+            return;
+        }
+
+        // Manejar el poder especial según su ID
+        if (poderEspecial.id === 'P001' || 
+            (poderEspecial.name && poderEspecial.name.toLowerCase().includes('meteoros'))) {
+            // Lógica para Meteoros de Pegaso
+            logMessage(`${attacker.name} inicia '${poderEspecial.name}'!`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                actionName: poderEspecial.name, 
+                message: `¡${attacker.name} ejecuta '${poderEspecial.name}'! (${costoCosmos} PC)` 
+            });
+
+            // Configurar el estado para los Meteoros de Pegaso
+            setActionState({
+                active: true,
+                type: 'MeteorosPegaso',
+                attackerId: attacker.id,
+                defenderId: defender.id,
+                stage: 'awaiting_defense',
+                baseDamage: 20, // Daño por golpe
+                hits: Math.floor(Math.random() * 4) + 5, // 5-8 golpes
+                blockDamagePA: 0, // Todo el daño va a la vida
+                blockDamagePV: 0,
+                allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
+                defenseBonuses: {},
+                powerUsed: true,
+                powerCost: costoCosmos,
+                powerId: poderEspecial.id
+            });
+        }
+        else if (poderEspecial.id === 'P004' || 
+                 (poderEspecial.name && poderEspecial.name.toLowerCase().includes('dragon naciente'))) {
+            // Iniciar el ataque Dragon Naciente
+            logMessage(`${attacker.name} inicia '${poderEspecial.name}'!`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                actionName: poderEspecial.name, 
+                message: `¡${attacker.name} ejecuta '${poderEspecial.name}'! (${costoCosmos} PC)` 
+            });
+
+            // Aplicar bonificación de daño para saltos futuros
+            const newJumpBonus = (attacker.stats.saltoDamageBonus || 0) + 10;
+            updatePlayerStatsAndHistory(attacker.id, { saltoDamageBonus: newJumpBonus }, 'bonus_salto');
+            logMessage(`¡${attacker.name} ha ganado +10 de daño permanente a su salto! (Total: +${newJumpBonus})`);
+
+            // Configurar el estado para el Dragon Naciente
+            setActionState({
+                active: true,
+                type: 'DragonNaciente',
+                attackerId: attacker.id,
+                defenderId: defender.id,
+                stage: 'awaiting_defense',
+                baseDamage: 120, // 120 puntos de daño total según la definición del poder
+                blockDamagePA: 0, // Todo el daño va a la vida
+                blockDamagePV: 0,
+                allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
+                defenseBonuses: {},
+                powerUsed: true,
+                powerCost: costoCosmos,
+                powerId: poderEspecial.id
+            });
+        } 
+        else if (poderEspecial.id === 'S001' || 
+                 poderEspecial.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('patada dragon')) {
+            // Iniciar la Patada Dragón
+            logMessage(`${attacker.name} inicia '${poderEspecial.name}'!`);
+            setArenaEvent({ 
+                id: Date.now(), 
+                type: 'action_effect', 
+                actionName: poderEspecial.name, 
+                message: `¡${attacker.name} ejecuta '${poderEspecial.name}'! (${costoCosmos} PC)` 
+            });
+
+            // Aumentar el contador de bonificación de daño de salto en +10
+            const newBonus = (attacker.stats.saltoDamageBonus || 0) + 10;
+            updatePlayerStatsAndHistory(attacker.id, { saltoDamageBonus: newBonus }, 'bonus_salto');
+            logMessage(`¡${attacker.name} ha ganado +10 de daño permanente a su salto! (Total: +${newBonus})`);
+
+            // Configurar el estado para la Patada Dragón
+            setActionState({
+                active: true,
+                type: 'PatadaDragon',
+                attackerId: attacker.id,
+                defenderId: defender.id,
+                stage: 'awaiting_defense',
+                baseDamage: 40, // 40 puntos de daño total
+                blockDamagePA: 20, // Mitad del daño a la armadura
+                blockDamagePV: 20, // Mitad del daño a la vida
+                allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
+                defenseBonuses: {},
+                powerUsed: true,
+                powerCost: costoCosmos,
+                powerId: poderEspecial.id
+            });
+        }
+
+        // Actualizar el cosmos gastado
+        updatePlayerStatsAndHistory(attacker.id, { 
+            currentPC: attacker.stats.currentPC - costoCosmos
+        }, 'usar_poder');
+        
         return;
     }
     else if (actionName === 'alcanzar_septimo_sentido') {
@@ -1235,9 +1379,26 @@ function App() {
     }
     else if (actionType === 'DobleSalto') {
         baseDamage = (attacker.actions.salto || 0) + 20; // DobleSalto parece más un Salto potente, no necesariamente un "Golpe"
+        // Aplicar bonificación de daño de salto si existe
+        const saltoBonus = attacker.stats.saltoDamageBonus || 0;
+        if (saltoBonus > 0) {
+            baseDamage += saltoBonus;
+            logMessage(`(Bonificación de Patada Dragón: +${saltoBonus} Daño)`);
+        }
     }
     else if (actionType.startsWith('Atrapar_')) baseDamage = actionState.baseDamage || 0;
-    else baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || 0;
+    else {
+        baseDamage = attacker.actions[actionKey]?.damage || attacker.actions[actionKey] || 0;
+        
+        // Aplicar bonificación de daño de salto si existe para el salto normal
+        if (actionKey === 'salto') {
+            const saltoBonus = attacker.stats.saltoDamageBonus || 0;
+            if (saltoBonus > 0) {
+                baseDamage += saltoBonus;
+                logMessage(`(Bonificación de Patada Dragón: +${saltoBonus} Daño al Salto)`);
+            }
+        }
+    }
 
     // Aplicar reducción de daño por partes rotas para acciones de tipo "Golpe" individuales
     if (golpeDamageReductionFromBreaks > 0) {
@@ -1269,6 +1430,15 @@ function App() {
         baseDamage = actionState.baseDamagePerHit || 20; // 20 de daño por cada meteoro
         logMessage(`Meteoro ${actionState.currentHit} de ${actionState.totalHits}`);
     }
+    else if (actionType === 'PatadaDragon') {
+        baseDamage = actionState.baseDamage || 40; // 40 de daño total
+        logMessage(`¡${attacker.name} lanza una Patada Dragón! (40 de daño total)`);
+        
+        // Aumentar el contador de bonificación de daño de salto en +10
+        const newBonus = (attacker.stats.saltoDamageBonus || 0) + 10;
+        updatePlayerStatsAndHistory(attacker.id, { saltoDamageBonus: newBonus }, 'bonus_salto');
+        logMessage(`¡${attacker.name} ha ganado +10 de daño permanente a su salto! (Total: +${newBonus})`);
+    }
     else if (!actionType.startsWith('Atrapar_') && !['DobleSalto', 'Combo', 'ComboVelocidadLuz', 'Engaño', 'Arrojar', 'Furia'].includes(actionType)) {
         if (attacker.stats.septimoSentidoActivo && ['golpe', 'lanzar_obj', 'salto', 'velocidad_luz', 'embestir', 'cargar'].includes(actionKey)) {
             baseDamage += 30; logMessage(`(7S Atacante: +30 Daño a ${actionType})`);
@@ -1294,7 +1464,11 @@ function App() {
             targetMax = max;
             if (rollVal >= targetMin && rollVal <= targetMax) {
                 defenseSuccessful = true; rollOutcome = 'blocked';
-                if (actionType === 'Arrojar') damageToDefenderPA = actionState.blockDamagePA;
+                if (actionType === 'PatadaDragon') {
+                    damageToDefenderPA = actionState.blockDamagePA || 20; // Mitad del daño a la armadura
+                    damageToDefender = actionState.blockDamagePV || 20; // Mitad del daño a la vida
+                }
+                else if (actionType === 'Arrojar') damageToDefenderPA = actionState.blockDamagePA;
                 else if (actionType === 'Furia') damageToDefenderPA = actionState.blockDamagePA;
                 else if (['Golpe', 'Velocidad_luz', 'ComboVelocidadLuz'].includes(actionType)) damageToDefenderPA = 10;
                 else if (['Lanzar_obj', 'Embestir', 'Cargar', 'Salto'].includes(actionType)) damageToDefenderPA = 20;
@@ -1340,10 +1514,35 @@ function App() {
 
     let attackerDamageMessage = "", defenderDamageMessage = "";
     let damageResultDefender = { gameOver: false, actualDamageDealt: 0 };
+    let damageResultDefenderPA = { gameOver: false, actualDamageDealt: 0 };
     let damageResultAttacker = { gameOver: false, actualDamageDealt: 0 };
-    if (damageToAttacker > 0) { damageResultAttacker = applyDamage(attackerId, damageToAttacker); attackerDamageMessage = `${attacker.name} recibe ${damageResultAttacker.actualDamageDealt} daño por contraataque.`; if (damageResultAttacker.gameOver) isGameOverByThisHit = true; }
-    if (!isGameOverByThisHit && damageToDefender > 0) { damageResultDefender = applyDamage(defenderId, damageToDefender); defenderDamageMessage = `${defender.name} recibe ${damageResultDefender.actualDamageDealt} de daño.`; if (damageResultDefender.gameOver) isGameOverByThisHit = true; }
-    if (!isGameOverByThisHit && damageToDefenderPA > 0) { damageResultDefender = applyDamage(defenderId, damageToDefenderPA, 'directPA'); defenderDamageMessage = `${defender.name} recibe ${damageResultDefender.actualDamageDealt} de daño a PA.`; if (damageResultDefender.gameOver) isGameOverByThisHit = true; }
+    
+    // Aplicar daño al atacante si hay contraataque
+    if (damageToAttacker > 0) { 
+        damageResultAttacker = applyDamage(attackerId, damageToAttacker); 
+        attackerDamageMessage = `${attacker.name} recibe ${damageResultAttacker.actualDamageDealt} daño por contraataque.`; 
+        if (damageResultAttacker.gameOver) isGameOverByThisHit = true; 
+    }
+    
+    // Aplicar daño al defensor
+    if (!isGameOverByThisHit && damageToDefender > 0) { 
+        damageResultDefender = applyDamage(defenderId, damageToDefender); 
+        defenderDamageMessage = `${defender.name} recibe ${damageResultDefender.actualDamageDealt} de daño.`; 
+        if (damageResultDefender.gameOver) isGameOverByThisHit = true; 
+    }
+    
+    // Aplicar daño a la armadura del defensor
+    if (!isGameOverByThisHit && damageToDefenderPA > 0) { 
+        damageResultDefenderPA = applyDamage(defenderId, damageToDefenderPA, 'directPA'); 
+        const damageType = actionType === 'PatadaDragon' ? ' (mitad a armadura, mitad a vida)' : '';
+        defenderDamageMessage = `${defender.name} recibe ${damageResultDefenderPA.actualDamageDealt} de daño a PA${damageType}.`; 
+        if (damageResultDefenderPA.gameOver) isGameOverByThisHit = true; 
+    }
+    
+    // Si es Patada Dragón y se bloqueó, mostrar mensaje específico
+    if (actionType === 'PatadaDragon' && rollOutcome === 'blocked') {
+        defenderDamageMessage = `${defender.name} bloquea la Patada Dragón: ${damageResultDefenderPA.actualDamageDealt} daño a PA y ${damageResultDefender.actualDamageDealt} daño a PV.`;
+    }
 
     let hitContext = "";
     if (['Arrojar', 'Furia', 'Combo', 'ComboVelocidadLuz', 'MeteorosPegaso'].includes(actionType)) { 
@@ -1595,119 +1794,6 @@ function App() {
     return p1Dead || p2Dead;
   };
 
-  // Nueva función para manejar la selección de poder
-  const handlePowerSelect = async (powerId) => {
-    // Usar los IDs del actionState existente
-    const attacker = actionState.attackerId === player1Data.id ? player1Data : player2Data;
-    const defender = actionState.defenderId === player1Data.id ? player1Data : player2Data;
-
-    if (!attacker || !defender || actionState.stage !== 'awaiting_power_selection') {
-        logMessage("Error: Estado incorrecto para seleccionar poder.");
-        setActionState({ active: false, type: null, stage: null, powerDetails: null, attackerId: null, defenderId: null });
-        return;
-    }
-
-    const selectedPower = attacker.powers.find(p => p.id === powerId);
-    if (!selectedPower) {
-        logMessage(`Error: Poder con ID ${powerId} no encontrado para ${attacker.name}.`);
-        setActionState({ active: false, type: null, stage: null, powerDetails: null, attackerId: null, defenderId: null });
-        return;
-    }
-
-    const powerCost = parseInt(selectedPower.cost) || 0;
-    if (attacker.stats.currentPC < powerCost) {
-        logMessage(`${attacker.name} no tiene suficiente cosmos para ${selectedPower.name} (${powerCost} PC necesarios, ${attacker.stats.currentPC} disponibles).`);
-        setArenaEvent({ 
-            id: Date.now(), 
-            type: 'action_effect', 
-            outcome: 'invalid', 
-            message: `¡No tienes PC para ${selectedPower.name}!` 
-        });
-        return;
-    }
-
-    // Excepción para Meteoros de Pegaso (multi-uso)
-    const isMeteoros = selectedPower.id === 'P001' || selectedPower.name.toLowerCase().includes('meteoros');
-    if (!isMeteoros && attacker.stats.poderesUsadosThisCombat) {
-        logMessage(`${attacker.name} ya usó un poder de un solo uso este combate.`);
-        setArenaEvent({ 
-            id: Date.now(), 
-            type: 'action_effect', 
-            outcome: 'invalid', 
-            message: '¡Ya usaste un poder este combate!' 
-        });
-        return;
-    }
-
-    logMessage(`${attacker.name} elige usar ¡'${selectedPower.name}'!`);
-    setArenaEvent({ 
-        id: Date.now(), 
-        type: 'action_effect', 
-        actionName: selectedPower.name, 
-        message: `¡${attacker.name} activa '${selectedPower.name}'! (${powerCost} PC)` 
-    });
-
-    // Deducir PC
-    let attackerStatChanges = { currentPC: attacker.stats.currentPC - powerCost };
-    
-    // Marcar poder usado si no es Meteoros
-    if (!isMeteoros) {
-        attackerStatChanges.poderesUsadosThisCombat = true;
-    }
-    updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, `poder: ${selectedPower.name.toLowerCase().replace(/\s/g, '_')}`);
-
-    // Configurar actionState para el poder específico
-    if (isMeteoros) {
-        const totalHits = selectedPower.details.toLowerCase().includes("5-8") ? 
-            (Math.floor(Math.random() * 4) + 5) : 5;
-        const baseDamage = selectedPower.details.toLowerCase().includes("x 20 ptos") ? 20 : 0;
-
-        setActionState({
-            active: true,
-            type: 'MeteorosPegaso',
-            powerDetails: selectedPower,
-            attackerId: attacker.id,
-            defenderId: defender.id,
-            stage: 'awaiting_defense',
-            currentHit: 1,
-            totalHits: totalHits,
-            baseDamagePerHit: baseDamage,
-            blockDamagePA: 0,
-            allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
-            defenseBonuses: {}
-        });
-    } else {
-        // Lógica genérica para otros poderes
-        let damage = selectedPower.damage || 0;
-        
-        // Aplicar bonos de 7S y PV al daño
-        damage += getSeptimoSentidoPowerDamageBonus(selectedPower, attacker.stats);
-        damage -= getPuntosVitalesPowerDamagePenalty(selectedPower, attacker.stats);
-        damage = Math.max(0, damage);
-
-        setActionState({
-            active: true,
-            type: selectedPower.name,
-            powerDetails: selectedPower,
-            attackerId: attacker.id,
-            defenderId: defender.id,
-            stage: 'awaiting_defense',
-            baseDamagePerHit: damage,
-            totalHits: 1,
-            currentHit: 1,
-            allowedDefenses: ['esquivar', 'bloquear', 'contraatacar'],
-            defenseBonuses: {}
-        });
-    }
-};
-
-  // Añadir useEffect para monitorear actionState
-  useEffect(() => {
-    if (actionState.active) {
-      console.log("App.jsx - actionState actualizado:", JSON.parse(JSON.stringify(actionState)));
-    }
-  }, [actionState]);
-
   // RENDER LOGIC
   if (gameView === 'characterSelection') {
     return (
@@ -1722,23 +1808,154 @@ function App() {
 
   if (gameView === 'combat' && player1Data && player2Data) {
     const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
-    const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
-    const isGameOver = checkGameOver();
 
-    return (
-      <div className="app-container">
-        <div className="game-container">
-          <PlayerArea
-            playerData={player1Data}
-            opponentData={player2Data}
-            handleActionInitiate={handleActionInitiate}
-            handlePowerSelect={handlePowerSelect}
-            handleDefenseSelection={handleDefenseSelection}
-            handleResistenciaChoice={handleResistenciaChoice}
-            isCurrentPlayer={currentPlayerId === player1Data.id && !isGameOver}
-            actionState={actionState}
-            handleAtraparFollowupSelect={handleAtraparFollowupSelect}
-            handleRomperTargetSelect={handleRomperTargetSelect}
+  if (!attacker || !defender) { // Verificación crucial
+      logMessage("Error en handleRomperTargetSelect: Datos de jugador no cargados.");
+      return;
+  }
+
+  const wasAtraparFollowup = actionState.type === 'Atrapar_Opcion6';
+  const actionTypeForHistory = wasAtraparFollowup ? 'atrapar' : 'romper';
+  let attackerStatChanges = {};
+
+  if (defender.stats.brokenParts[partToBreak] >= 2) {
+      setArenaEvent({ id: Date.now(), outcome: 'invalid', message: `${partToBreak.charAt(0).toUpperCase() + partToBreak.slice(1)} no se puede romper más.` });
+      updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, actionTypeForHistory);
+      setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
+      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+      setCurrentPlayerId(nextPlayerId); logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+      return;
+  }
+  const bonus = actionState.romperBonus || 0;
+  const gameOverByRomper = resolveRomperAttempt(attacker, defender, partToBreak, bonus);
+
+  updatePlayerStatsAndHistory(attacker.id, attackerStatChanges, actionTypeForHistory);
+
+  if (!gameOverByRomper) {
+      await delay(1500);
+      setActionState(prev => ({ ...prev, active: false, type: null, stage: null }));
+      const nextPlayerId = currentPlayerId === player1Data.id ? player2Data.id : player1Data.id;
+      setCurrentPlayerId(nextPlayerId); logMessage(`Turno de ${nextPlayerId === player1Data.id ? player1Data.name : player2Data.name}`);
+  } else {
+    if (actionState.stage !== 'game_over') { setActionState(prev => ({ ...prev, stage: 'game_over' })); }
+  }
+};
+
+const checkGameOver = () => {
+  if (!player1Data || !player2Data) return false; // No hay juego si no hay datos de jugadores
+
+  const p1Dead = player1Data.stats.currentPV <= 0;
+  const p2Dead = player2Data.stats.currentPV <= 0;
+  return p1Dead || p2Dead;
+};
+
+// RENDER LOGIC
+if (gameView === 'characterSelection') {
+  return (
+    <div className="app-container">
+      <CharacterSelection
+        personajes={CABALLEROS_DISPONIBLES}
+        onStartCombat={handleCombatStart}
+      />
+    </div>
+  );
+}
+
+if (gameView === 'combat' && player1Data && player2Data) {
+  const attacker = currentPlayerId === player1Data.id ? player1Data : player2Data;
+  const defender = currentPlayerId === player1Data.id ? player2Data : player1Data;
+  const isGameOver = checkGameOver();
+
+  return (
+    <div className="app-container">
+      <GameLog 
+        gameLog={gameLog} 
+        currentPlayerId={currentPlayerId}
+        player1Data={player1Data}
+        player2Data={player2Data}
+      />
+      <div className="game-container">
+        <PlayerArea
+          playerData={player1Data}
+          opponentData={player2Data}
+          handleActionInitiate={handleActionInitiate}
+          handleDefenseSelection={handleDefenseSelection}
+          handleResistenciaChoice={handleResistenciaChoice}
+          isCurrentPlayer={currentPlayerId === player1Data.id && !isGameOver}
+          actionState={actionState}
+          handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+          handleRomperTargetSelect={handleRomperTargetSelect}
+          selectedActionName={actionState.active && actionState.attackerId === player1Data.id ? actionState.type : null}
+          getActionConcentrationRequirement={getActionConcentrationRequirement}
+          IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+          atraparOptions={atraparFollowupOptions}
+        />
+        <ArenaDisplay
+          attacker={attacker}
+          defender={defender}
+          actionState={actionState}
+          handleDefenseSelection={handleDefenseSelection}
+          currentPlayerId={currentPlayerId}
+          gameLog={gameLog}
+          arenaEvent={arenaEvent}
+          isGameOver={isGameOver}
+          onPlayAgain={handlePlayAgain}
+          atraparFollowupOptions={atraparFollowupOptions}
+        />
+        <PlayerArea
+          playerData={player2Data}
+          opponentData={player1Data}
+          handleActionInitiate={handleActionInitiate}
+          handleDefenseSelection={handleDefenseSelection}
+          handleResistenciaChoice={handleResistenciaChoice}
+          isCurrentPlayer={currentPlayerId === player2Data.id && !isGameOver}
+          actionState={actionState}
+          handleAtraparFollowupSelect={handleAtraparFollowupSelect}
+          handleRomperTargetSelect={handleRomperTargetSelect}
+          selectedActionName={actionState.active && actionState.attackerId === player2Data.id ? actionState.type : null}
+          isRightAligned
+          getActionConcentrationRequirement={getActionConcentrationRequirement}
+          IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
+          atraparOptions={atraparFollowupOptions}
+        />
+      </div>
+      {/* Menú de selección de poderes */}
+      {powerSelection.isSelecting && (
+        <div className="power-selection-overlay">
+          <div className="power-selection-menu">
+            <h3>Selecciona un poder</h3>
+            <div className="power-buttons">
+              {powerSelection.powers.map((power) => {
+                const canAfford = (player1Data.id === powerSelection.attackerId ? player1Data : player2Data).stats.currentPC >= (parseInt(power.cost) || 50);
+                return (
+                  <button
+                    key={power.id}
+                    className={`power-button ${!canAfford ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (canAfford) {
+                        const attacker = player1Data.id === powerSelection.attackerId ? player1Data : player2Data;
+                        const defender = player1Data.id === powerSelection.defenderId ? player2Data : player1Data;
+                        handlePowerSelect(power, attacker, defender);
+                      }
+                    }}
+                    disabled={!canAfford}
+                  >
+                    <div className="power-name">{power.name}</div>
+                    <div className="power-cost">Costo: {power.cost} PC</div>
+                    {power.damage && <div className="power-damage">Daño: {power.damage}</div>}
+                    {power.effects && <div className="power-effects">{power.effects}</div>}
+                    {!canAfford && <div className="power-insufficient">¡Cosmos insuficiente!</div>}
+                  </button>
+                );
+              })}
+            </div>
+            <button 
+              className="cancel-button" 
+              onClick={() => setPowerSelection({ isSelecting: false, powers: [], attackerId: null, defenderId: null })}
+            >
+              Cancelar
+            </button>
+          </div>
             selectedActionName={actionState.active && actionState.attackerId === player1Data.id ? actionState.type : null}
             getActionConcentrationRequirement={getActionConcentrationRequirement}
             IS_ACTION_ALTERNATION_EXCEPTION={IS_ACTION_ALTERNATION_EXCEPTION}
@@ -1760,7 +1977,6 @@ function App() {
             playerData={player2Data}
             opponentData={player1Data}
             handleActionInitiate={handleActionInitiate}
-            handlePowerSelect={handlePowerSelect}
             handleDefenseSelection={handleDefenseSelection}
             handleResistenciaChoice={handleResistenciaChoice}
             isCurrentPlayer={currentPlayerId === player2Data.id && !isGameOver}
