@@ -566,9 +566,9 @@ function PlayerArea({
             : actionState.stage === 'awaiting_resistencia_choice' && actionState.attackerId === playerData.id ? renderResistenciaChoice()
             : actionState.stage === 'awaiting_followup' && actionState.attackerId === playerData.id ? renderAtraparFollowup()
             : actionState.stage === 'awaiting_romper_target' && actionState.attackerId === playerData.id ? renderRomperTarget()
-            : actionState.active && actionState.attackerId === playerData.id && (actionState.stage === 'awaiting_defense' || actionState.type === 'UsarPoder')
+            : actionState.active && actionState.attackerId === playerData.id && (actionState.stage?.startsWith('awaiting_defense') || actionState.type === 'UsarPoder')
                 ? <div className="waiting-message">
-                    Esperando {actionState.stage === 'awaiting_defense' ? 'defensa del rival' : 'acción'} ({
+                    Esperando {actionState.stage?.startsWith('awaiting_defense') ? 'defensa del rival' : 'acción'} ({
                       actionState.powerDetails ? actionState.powerDetails.name : 
                       actionState.type?.replace(/_/g, ' ').replace('VelocidadLuz', 'Vel. Luz') || 'Acción Actual'
                     }
@@ -577,7 +577,7 @@ function PlayerArea({
                   </div>
             : renderActionSelection()
           ) : (
-            actionState.active && actionState.defenderId === playerData.id && actionState.stage === 'awaiting_defense' ? renderDefenseSelection()
+            actionState.active && actionState.defenderId === playerData.id && actionState.stage?.startsWith('awaiting_defense') ? renderDefenseSelection()
             : <div className="waiting-message">Esperando turno del rival...</div>
           )}
       </div>
